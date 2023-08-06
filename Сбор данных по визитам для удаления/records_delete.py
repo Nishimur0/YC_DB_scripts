@@ -1344,7 +1344,7 @@ class Records:
                     console_text.insert(tk.END, "Нет чаевых в записях\n")
                 else:
                     ids = [item[0] for item in invoices_mt]
-                    with open('deleters/invoices(records_google).sql', 'a') as invoices_records_file:
+                    with open('deleters/invoices(invoice_records_link).sql', 'a') as invoices_records_file:
                         if len(ids) > 5000:
                             for i in range(len(ids) // 5000 + 1):
                                 print('DELETE FROM invoice WHERE id in ( ', file=invoices_records_file)
@@ -1377,7 +1377,7 @@ class Records:
                 if not result_mt:
                     console_text.insert(tk.END, "Нет строк для бэкапа\n")
                 else:
-                    with open('backups/invoices(records_google)_backup.sql', 'a', encoding='utf-8') as invoices_record_backup:
+                    with open('backups/invoices(invoice_records_link)_backup.sql', 'a', encoding='utf-8') as invoices_record_backup:
                         counter = 0
                         for row in result_mt:
                             row = tuple('null' if x is None else x for x in row)
