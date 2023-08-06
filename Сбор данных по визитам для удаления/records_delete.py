@@ -26,6 +26,8 @@ records_with_resources_str = []
 records_from_google_list = ''
 invoice_records_list = []
 invoice_records_list_str = ''
+order_id_record_invoices_str =''
+order_id_record_invoices_list =[]
 
 class Records:
     #Создание экземпляра класса. Дата создания и пользователь могут быть пустыми.
@@ -125,6 +127,7 @@ class Records:
                 else:
                     ids = [item[0] for item in result]
                     self.__tt_record_ids_global = copy.deepcopy(ids)
+                    self.__records_list = ', '.join([f'"{val}"' for val in ids])
                     with open('deleters/tt_records_delete.sql', 'a') as tr_file:
                         if len(ids) > 5000:
                             for i in range (len(ids)//5000 +1):
@@ -153,7 +156,6 @@ class Records:
             with connection.cursor() as cursor:
                 if len(self.__tt_record_ids_global) >=1:
                     values_str = ', '.join([f'"{val}"' for val in self.__tt_record_ids_global])
-                    self.__records_list = copy.deepcopy(values_str)
                     sql = f'select * from tt_records ' \
                           f'where id IN ({values_str});'
                     cursor.execute(sql)
@@ -599,7 +601,7 @@ class Records:
                                     f'{row[8]},{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},\'{row[15]}\', '
                                     f'\'{row[16]}\',\'{row[17]}\',\'{row[18]}\', \'{row[19]}\'),', file=mti_backup)
                                 counter += 1
-                        console_text.insert(tk.END, 'invoce_tips_backup готов \n')
+                        console_text.insert(tk.END, 'invoces(tips) backup готов \n')
 
     def documents_delete(self):
         try:
@@ -890,7 +892,7 @@ class Records:
                     if len(self.__gt_abonements_list) >= 1:
                         self.__gt_abonements_ids = ', '.join(f'{val}' for val in self.__gt_abonements_list)
                     else:
-                        console_text.insert(tk.END, 'В записях нет продаж абонементов')
+                        console_text.insert(tk.END, 'В записях нет продаж абонементов\n')
 
                     with open('deleters/goods_transactions.sql', 'a') as goods_transactions_file:
                         if len(ids) > 5000:
@@ -1236,11 +1238,13 @@ class Records:
     def invoice_record_links(self):
         global invoice_records_list
         global invoice_records_list_str
-        if len(self.__tt_record_ids_global) <= 0:
+        global order_id_record_invoices_str
+        global order_id_record_invoices_list
+        if len(self.__tt_record_ids_global) == 0:
             console_text.insert(tk.END, 'Выборка не содержит записей\n')
         else:
             with connection.cursor() as cursor:
-                query = f'SELECT id ' \
+                query = f'SELECT id, order_id ' \
                         f'FROM invoice_record_links ' \
                         f'WHERE record_id ' \
                         f'IN ({self.__records_list});'
@@ -1252,6 +1256,8 @@ class Records:
                 else:
                     invoice_records_list = [item[0] for item in invoice_records]
                     invoice_records_list_str = ', '.join([f'"{val}"' for val in invoice_records_list])
+                    order_id_record_invoices_list = [f"'{item[1]}'" for item in invoice_records]
+                    order_id_record_invoices_str = ', '.join([val for val in order_id_record_invoices_list])
                     ids = [item[0] for item in invoice_records]
                     with open('deleters/invoice_record_links.sql', 'a') as invoice_record_links_file:
                         if len(ids) > 5000:
@@ -1288,7 +1294,7 @@ class Records:
                 if not result:
                     console_text.insert(tk.END, "Нет записей invoice_records_list_str для бэкапа\n")
                 else:
-                    with open('backups/invoice_record_links.sql', 'a',
+                    with open('backups/invoice_record_links(google_records)_backup.sql', 'a',
                               encoding='utf-8') as invoice_record_links_backup:
                         counter = 0
                         for row in result:
@@ -1327,7 +1333,80 @@ class Records:
                                 counter += 1
                         console_text.insert(tk.END, 'invoice_record_links_backup готов \n')
 
-    
+    def invoces_record(self):
+        if len(order_id_record_invoices_list) >= 1:
+            with connection.cursor() as cursor:
+                query = f'SELECT id FROM invoice WHERE order_id IN ({order_id_record_invoices_str});'
+                cursor.execute(query)
+                invoices_mt = cursor.fetchall()
+                cursor.close()
+                if not invoices_mt:
+                    console_text.insert(tk.END, "Нет чаевых в записях\n")
+                else:
+                    ids = [item[0] for item in invoices_mt]
+                    with open('deleters/invoices(records_google).sql', 'a') as invoices_records_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM invoice WHERE id in ( ', file=invoices_records_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=invoices_records_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=invoices_records_file)
+                                        break
+                        else:
+                            print('DELETE FROM invoice WHERE id in ( ', file=invoices_records_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=invoices_records_file)
+                                else:
+                                    print(ids[i], ');', file=invoices_records_file)
+        else:
+            console_text.insert(tk.END, 'Нет строк в invoices  по записям\n')
+
+    def invoices_records_backup(self):
+        if len(order_id_record_invoices_list) == 0:
+            console_text.insert(tk.END, "Нет инвойсов Записей для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM invoice WHERE order_id IN ({order_id_record_invoices_str});'
+                cursor.execute(query)
+                result_mt = cursor.fetchall()
+                cursor.close()
+                if not result_mt:
+                    console_text.insert(tk.END, "Нет строк для бэкапа\n")
+                else:
+                    with open('backups/invoices(records_google)_backup.sql', 'a', encoding='utf-8') as invoices_record_backup:
+                        counter = 0
+                        for row in result_mt:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0:
+                                print('INSERT INTO invoice '
+                                      '(id, salon_id, status, payment_system_id, payment_type_id, order_id, ps_transaction_id, '
+                                      'sum, ps_sum, payout_sum, currency_id, currency_rate, client_id, ps_account_id, is_test, '
+                                      'date_create, date_ps_payment, date_payout, title, comment) '
+                                      'VALUES', file=invoices_record_backup)
+                                print(
+                                    f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},\'{row[5]}\',\'{row[6]}\',{row[7]}, '
+                                    f'{row[8]},{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},\'{row[15]}\', '
+                                    f'\'{row[16]}\',\'{row[17]}\',\'{row[18]}\', \'{row[19]}\'),', file=invoices_record_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result_mt) - 1:
+                                print(
+                                    f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},\'{row[5]}\',\'{row[6]}\',{row[7]}, '
+                                    f'{row[8]},{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},\'{row[15]}\', '
+                                    f'\'{row[16]}\',\'{row[17]}\',\'{row[18]}\', \'{row[19]}\');', file=invoices_record_backup)
+                                counter = 0
+                            else:
+                                print(
+                                    f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},\'{row[5]}\',\'{row[6]}\',{row[7]}, '
+                                    f'{row[8]},{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},\'{row[15]}\', '
+                                    f'\'{row[16]}\',\'{row[17]}\',\'{row[18]}\', \'{row[19]}\'),', file=invoices_record_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'invoices_record_backup backup готов \n')
+
+
 def start_application():
     # Собираю входные значения для ЭК
     date_from = date_from_entry.get()
@@ -1381,6 +1460,10 @@ def start_application():
     records.tt_resources_occupation_backup()
     records.google_booking_records()
     records.google_booking_records_backup()
+    records.invoice_record_links()
+    records.invoice_record_links_backup()
+    records.invoces_record()
+    records.invoices_records_backup()
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
