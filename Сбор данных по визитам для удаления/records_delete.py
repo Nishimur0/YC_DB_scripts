@@ -23,6 +23,7 @@ except Exception as e:
     print(f"Не удалось установить соединение с базой данных: {e}")
 
 records_with_resources_str = ''
+records_from_google_list = ''
 
 class Records:
     #Создание экземпляра класса. Дата создания и пользователь могут быть пустыми.
@@ -973,7 +974,7 @@ class Records:
 
     def record_resourse_link(self):
         if len(self.__tt_record_ids_global) <= 0:
-            console_text.insert(tk.END, 'Выборка не содержит записей c ресурсами')
+            console_text.insert(tk.END, 'Выборка не содержит записей c ресурсами\n')
         else:
             with connection.cursor() as cursor:
                 query = f'SELECT DISTINCT(record_id) ' \
@@ -991,7 +992,7 @@ class Records:
                     with open('deleters/record_resource_instances_link.sql', 'a') as record_resource_instances_link_file:
                         if len(ids) > 5000:
                             for i in range(len(ids) // 5000 + 1):
-                                print('DELETE FROM record_resource_instances_link WHERE record_id in ( ', file=transactions_file)
+                                print('DELETE FROM record_resource_instances_link WHERE record_id in ( ', file=record_resource_instances_link_file)
                                 for j in range(5000):
                                     id = ids.pop(0)
                                     print(id, ', ', file=record_resource_instances_link_file)
@@ -1017,7 +1018,7 @@ class Records:
                 if len(self.__recordsWithResources) >=1:
                     values_str = ', '.join([f'"{val}"' for val in self.__recordsWithResources])
                 else:
-                    console_text.insert((tk.END, 'Говорил же, что нет записей с ресурсами'))
+                    console_text.insert(tk.END, 'Говорил же, что нет записей с ресурсами')
                 query = f'SELECT * FROM record_resource_instances_link WHERE ' \
                         f'record_id IN ({values_str});'
                 cursor.execute(query)
@@ -1041,7 +1042,7 @@ class Records:
                                 print(
                                     f'({row[0]},{row[1]},{row[2]},{row[3]});', file=result_record_resource_instances_link_backup)
                                 counter = 0
-                            elif counter == 0 and len(result) == 1:
+                            elif counter == 0 and len(result_record_resource_instances_link) == 1:
                                 print('INSERT INTO record_resource_instances_link '
                                       '(record_id, resource_instance_id, service_id, salon_service_id) '
                                       'VALUES', file=result_record_resource_instances_link_backup)
@@ -1058,7 +1059,7 @@ class Records:
     def tt_resources_occupation(self):
         global records_with_resources_str
         if len(self.__recordsWithResources) <= 0:
-            console_text.insert(tk.END, 'Выборка не содержит записей c ресурсами')
+            console_text.insert(tk.END, 'Выборка не содержит записей c ресурсами\n')
         else:
             records_with_resources_str = ', '.join([f'"{val}"' for val in self.__recordsWithResources])
             with connection.cursor() as cursor:
@@ -1098,7 +1099,7 @@ class Records:
 
     def tt_resources_occupation_backup(self):
         if len(self.__recordsWithResources) <= 0:
-            console_text.insert(tk.END, "Нет записей с ресурсами для удаления\n")
+            console_text.insert(tk.END, "Нет записей с ресурсами для бэкапа\n")
         else:
             with connection.cursor() as cursor:
                 query = f'SELECT * FROM tt_resources_occupation WHERE ' \
@@ -1137,6 +1138,100 @@ class Records:
                                     f'({row[0]},\'{row[1]}\',{row[2]},{row[3]},{row[4]}, \'{row[5]}\', \'{row[6]}\'),', file=tt_resources_occupation_backup)
                                 counter += 1
                         console_text.insert(tk.END, 'tt_resources_occupation_backup готов \n')
+
+    def google_booking_records(self):
+        global records_from_google_list
+        global records_from_google_list_str
+        if len(self.__tt_record_ids_global) <= 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей через google')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM google_booking_records ' \
+                        f'WHERE record_id_as_booking_id ' \
+                        f'IN ({self.__records_list});'
+                cursor.execute(query)
+                records_from_google = cursor.fetchall()
+                cursor.close()
+                if not records_from_google:
+                    console_text.insert(tk.END, "Нет записей из google\n")
+                else:
+                    records_from_google_list = [item[0] for item in records_from_google]
+                    records_from_google_list_str = ', '.join([f'"{val}"' for val in records_from_google_list])
+                    ids = [item[0] for item in records_from_google]
+                    with open('deleters/records_from_google.sql', 'a') as records_from_google_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM google_booking_records WHERE id in ( ', file=records_from_google_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=records_from_google_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=records_from_google_file)
+                                        break
+                        else:
+                            print('DELETE FROM google_booking_records WHERE id in ( ', file=records_from_google_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=records_from_google_file)
+                                else:
+                                    print(ids[i], ');', file=records_from_google_file)
+
+                        console_text.insert(tk.END, 'Удаление записей из google собраны\n')
+
+    def google_booking_records_backup(self):
+        if len(records_from_google_list) == 0:
+            console_text.insert(tk.END, "Нет записей google для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM google_booking_records WHERE ' \
+                        f'id IN ({records_from_google_list_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей google для бэкапа\n")
+                else:
+                    with open('backups/records_from_google_backup.sql', 'a', encoding='utf-8') as records_from_google_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO google_booking_records '
+                                      '(id, partner_id, google_user_id, idempotency_token, record_id_as_booking_id, '
+                                      'client_id, user_id, date_create, is_sandbox) '
+                                      'VALUES ', file=records_from_google_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\', \'{row[3]}\', '
+                                    f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]}'
+                                    f' ),', file=records_from_google_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\', \'{row[3]}\', '
+                                    f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]} '
+                                    f');', file=records_from_google_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO google_booking_records '
+                                      '(id, partner_id, google_user_id, idempotency_token, record_id_as_booking_id, '
+                                      'client_id, user_id, date_create, is_sandbox) '
+                                      'VALUES ', file=records_from_google_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\', \'{row[3]}\', '
+                                    f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]} '
+                                    f');',
+                                    file=records_from_google_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\', \'{row[3]}\', '
+                                    f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]} '
+                                    f'),', file=records_from_google_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'records_from_google_backup готов \n')
+
+
 
 def start_application():
     # Собираю входные значения для ЭК
@@ -1189,6 +1284,8 @@ def start_application():
     records.record_resource_instances_link_backup()
     records.tt_resources_occupation()
     records.tt_resources_occupation_backup()
+    records.google_booking_records()
+    records.google_booking_records_backup()
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
@@ -1255,11 +1352,10 @@ console_text.insert(tk.END, 'Дату можно ввести руками ил�
 console_text.insert(tk.END, 'Доверяй, но проверяй. \nПосмотри, что бы готовые файлы не имели ошибок\n')
 window.mainloop()
 
-# ██████▒▒▒▒ 60% Боевой готовности
+# ██████▒▒▒▒ 65% Боевой готовности
 # Не забудь что то придумать с лояльностью. Например добавить чекбоксы "удалить транзакции!! IMPORTANT! first_priority!
 # лояльности по абонементам и сертификатам проданным в визитах". Не забудь обработать сами визиты IMPORTANT! first_priority!
 # и удалить транзакции в них. IMPORTANT! first_priority!
-# record_resource_instances_link IMPORTANT! second_priority!
 # Опциональная возможность списать с карт лояльности сумму транзакций или выпилить карты лояльности у клиентов массово
 # Оставшиеся таблицы для обработки скриптом(не часто используются): google_booking_records, invoice(invoice_record_links),
 # presetted_record_links, record_resource_instances_link, reception_qr_record_bind, tt_records_changes,
