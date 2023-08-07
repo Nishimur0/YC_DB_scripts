@@ -33,6 +33,7 @@ transactions_amount_tup = ''
 records_from_google_list_str = ''
 visit_ids_str =''
 medicine_appontment_str = ''
+medicine_appontment_list = []
 
 def validate_date(date):
     try:
@@ -1935,7 +1936,7 @@ class Records:
                         console_text.insert(tk.END, 'visit_notification_setting_backup готов \n')
 
     def medicine_appointments(self):
-        global medicine_appontment_str
+        global medicine_appontment_str, medicine_appontment_list
         if len(self.__tt_record_ids_global) == 0:
             console_text.insert(tk.END, 'Выборка не содержит записей\n')
         else:
@@ -1951,7 +1952,8 @@ class Records:
                     console_text.insert(tk.END, "Нет записей в medicine_appointments\n")
                 else:
                     ids = [item[0] for item in records_labels_link_rows]
-                    medicine_appontment_str = ' ,'.join(f"'{val}'" for val in ids)
+                    medicine_appontment_str = ', '.join([f'"{val}"' for val in ids])
+                    medicine_appontment_list = copy.deepcopy(ids)
                     with open('deleters/medicine_appointments.sql', 'a') as medicine_appointments_file:
                         if len(ids) > 5000:
                             for i in range(len(ids) // 5000 + 1):
@@ -2021,7 +2023,7 @@ class Records:
                         console_text.insert(tk.END, 'medicine_appointments_backup готов \n')
 
     def medicine_appointment_field_values(self):
-        if len(self.__tt_record_ids_global) == 0:
+        if len(medicine_appontment_list) == 0:
             console_text.insert(tk.END, 'Выборка не содержит записей\n')
         else:
             with connection.cursor() as cursor:
@@ -2059,12 +2061,12 @@ class Records:
                         console_text.insert(tk.END, 'Удаление записей в medicine_appointment_field_values собраны\n')
 
     def medicine_appointment_field_values_backup(self):
-        if len(self.__tt_record_ids_global) == 0:
+        if len(medicine_appontment_list) == 0:
             console_text.insert(tk.END, "Нет записей для бэкапа\n")
         else:
             with connection.cursor() as cursor:
                 query = f'SELECT * FROM medicine_appointment_field_values WHERE medicine_appointment_id ' \
-                        f'IN IN ({medicine_appontment_str});'
+                        f'IN ({medicine_appontment_str});'
                 cursor.execute(query)
                 result = cursor.fetchall()
                 cursor.close()
