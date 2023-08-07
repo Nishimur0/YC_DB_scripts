@@ -28,18 +28,32 @@ invoice_records_list = []
 invoice_records_list_str = ''
 order_id_record_invoices_str =''
 order_id_record_invoices_list =[]
+transactions = []
+transactions_amount_tup = ''
+records_from_google_list_str = ''
+visit_ids_str =''
+medicine_appontment_str = ''
+
+def validate_date(date):
+    try:
+        new_date = datetime.strptime(date, '%Y-%m-%d').date()
+        return str(new_date)
+    except ValueError:
+        console_text.insert(tk.END, "Некорректная дата \n")
+        raise ValueError('Некорректная дата')
+
 
 class Records:
     #Создание экземпляра класса. Дата создания и пользователь могут быть пустыми.
     #Их буду использовать только если требуется удаление всех записей конкретного пользователя
     #Или созданные в конкретное время
     def __init__(self, date_from, date_to, salon_id, deleted, cdate_from=None, cdate_to = None, user_id = None):
-        self.__date_from  = self.validate_date(date_from)
-        self.__date_to = self.validate_date(date_to)
+        self.__date_from  = validate_date(date_from)
+        self.__date_to = validate_date(date_to)
         self.__salon_id = int(salon_id)
         self.__deleted = [1, 0] if deleted == '-1' else (['1'] if deleted == '1' else [0])
-        self.__cdate_from = self.validate_date(cdate_from) if cdate_from not in '' else None
-        self.__cdate_to = self.validate_date(cdate_to)  if cdate_to not in '' else None
+        self.__cdate_from = validate_date(cdate_from) if cdate_from not in '' else None
+        self.__cdate_to = validate_date(cdate_to)  if cdate_to not in '' else None
         self.__user_id = user_id if user_id not in '' else None
         self.__tt_record_ids_global = []
         self.__visit_ids_global = []
@@ -57,14 +71,8 @@ class Records:
         self.__goods_transactions_ids = None
         self.__records_list = None
         self.__recordsWithResources = []
+        self.__gt_certificates_ids = None
 
-    def validate_date(self, date):
-        try:
-            new_date = datetime.strptime(date, '%Y-%m-%d').date()
-            return str(new_date)
-        except ValueError:
-            console_text.insert(tk.END, "Некорректная дата \n")
-            raise ValueError('Некорректная дата')
     def delete_standart(self):
 
         # Создаю папки. Мы же культурные б..ть. А поскольку всегда начинаем с этого метода. Они создаются тут
@@ -208,6 +216,7 @@ class Records:
 
 #Собираю файл client_visits
     def client_visits_delete(self):
+        global visit_ids_str
         try:
             with connection.cursor() as cursor:
                 if len(self.__tt_record_ids_global) >=1:
@@ -627,7 +636,7 @@ class Records:
                 else:
                     self.__documents_list = [item[0] for item in result]
                     self.__documents_ids = ', '.join([f'"{val}"' for val in self.__documents_list])
-                    ids = copy.deepcopy((self.__documents_list))
+                    ids = copy.deepcopy(self.__documents_list)
                     with open('deleters/documents_delete.sql', 'a') as documents_file:
                         if len(ids) > 5000:
                             for i in range(len(ids) // 5000 + 1):
@@ -865,7 +874,6 @@ class Records:
                         console_text.insert(tk.END, 'transactions_backup готов \n')
 
     def goods_transactions_delete(self):
-        global goods_transactions_ids
         if len(self.__documents_list) >= 1:
             with connection.cursor() as cursor:
                 query = f'SELECT id, loyalty_certificate_id, loyalty_abonement_id ' \
@@ -1574,6 +1582,528 @@ class Records:
                                 counter += 1
                         console_text.insert(tk.END, 'reception_qr_record_bind_backup готов \n')
 
+    def records_labels_link(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT record_id ' \
+                        f'FROM records_labels_link ' \
+                        f'WHERE record_id ' \
+                        f'IN ({self.__records_list});'
+                cursor.execute(query)
+                records_labels_link_rows = cursor.fetchall()
+                cursor.close()
+                if not records_labels_link_rows:
+                    console_text.insert(tk.END, "Нет записей в presetted_record_links\n")
+                else:
+                    ids = [item[0] for item in records_labels_link_rows]
+                    with open('deleters/records_labels_link.sql', 'a') as records_labels_link_rows_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM records_labels_link WHERE record_id in ( ',
+                                      file=records_labels_link_rows_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=records_labels_link_rows_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=records_labels_link_rows_file)
+                                        break
+                        else:
+                            print('DELETE FROM records_labels_link WHERE id in ( ', file=records_labels_link_rows_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=records_labels_link_rows_file)
+                                else:
+                                    print(ids[i], ');', file=records_labels_link_rows_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в records_labels_link_rows собраны\n')
+
+    def records_labels_link_backup(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей records_labels_link бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM records_labels_link WHERE ' \
+                        f'record_id IN ({self.__records_list});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей records_labels_link для бэкапа\n")
+                else:
+                    with open('backups/records_labels_link_backup.sql', 'a',
+                              encoding='utf-8') as records_labels_link_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO records_labels_link '
+                                      '(record_id, label_id, position_id) '
+                                      'VALUES', file=records_labels_link_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f' ),', file=records_labels_link_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');', file=records_labels_link_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO records_labels_link '
+                                      '(record_id, label_id, position_id) '
+                                      'VALUES', file=records_labels_link_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');',
+                                    file=records_labels_link_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f'),', file=records_labels_link_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'records_labels_link_backup готов \n')
+
+
+    def loyalty_group_clients_referral_links(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит визитов\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM loyalty_group_clients_referral_links ' \
+                        f'WHERE visit_id ' \
+                        f'IN ({visit_ids_str});'
+                cursor.execute(query)
+                lgcrl_rows = cursor.fetchall()
+                cursor.close()
+                if not lgcrl_rows:
+                    console_text.insert(tk.END, "Нет записей в loyalty_group_clients_referral_links\n")
+                else:
+                    ids = [item[0] for item in lgcrl_rows]
+                    with open('deleters/loyalty_group_clients_referral_links.sql', 'a') as loyalty_group_clients_referral_links_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM loyalty_group_clients_referral_links WHERE id in ( ',
+                                      file=loyalty_group_clients_referral_links_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=loyalty_group_clients_referral_links_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=loyalty_group_clients_referral_links_file)
+                                        break
+                        else:
+                            print('DELETE FROM loyalty_group_clients_referral_links '
+                                  'WHERE id in ( ', file=loyalty_group_clients_referral_links_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=loyalty_group_clients_referral_links_file)
+                                else:
+                                    print(ids[i], ');', file=loyalty_group_clients_referral_links_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в loyalty_group_clients_referral_links собраны\n')
+
+    def loyalty_group_clients_referral_links_backup(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей визитов для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM loyalty_group_clients_referral_links WHERE ' \
+                        f'visit_id IN ({visit_ids_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет строк в loyalty_group_clients_referral_links для бэкапа\n")
+                else:
+                    with open('backups/loyalty_group_clients_referral_links_backup.sql', 'a',
+                              encoding='utf-8') as loyalty_group_clients_referral_links_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO loyalty_group_clients_referral_links '
+                                      '(id, salon_group_id, visit_id, referrer_phone, referral_phone, document_id) '
+                                      'VALUES', file=loyalty_group_clients_referral_links_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f' ),', file=loyalty_group_clients_referral_links_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f');', file=loyalty_group_clients_referral_links_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO records_labels_link '
+                                      '(record_id, label_id, position_id) '
+                                      'VALUES', file=loyalty_group_clients_referral_links_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f');',
+                                    file=loyalty_group_clients_referral_links_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'),', file=loyalty_group_clients_referral_links_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'loyalty_group_clients_referral_links_backup готов \n')
+
+    def visit_notification(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит визитов\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM visit_notification ' \
+                        f'WHERE visit_id ' \
+                        f'IN ({visit_ids_str});'
+                cursor.execute(query)
+                visit_notification_rows = cursor.fetchall()
+                cursor.close()
+                if not visit_notification_rows:
+                    console_text.insert(tk.END, "Нет записей в visit_notification\n")
+                else:
+                    ids = [item[0] for item in visit_notification_rows]
+                    with open('deleters/visit_notification.sql', 'a') as visit_notification_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM visit_notification WHERE id in ( ',
+                                      file=visit_notification_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=visit_notification_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=visit_notification_file)
+                                        break
+                        else:
+                            print('DELETE FROM visit_notification '
+                                  'WHERE id in ( ', file=visit_notification_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=visit_notification_file)
+                                else:
+                                    print(ids[i], ');', file=visit_notification_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в visit_notification собраны\n')
+
+    def visit_notification_backup(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, "Нет строк в visit_notification для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM visit_notification WHERE ' \
+                        f'visit_id IN ({visit_ids_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет строк в visit_notification для бэкапа\n")
+                else:
+                    with open('backups/visit_notification_backup.sql', 'a',
+                              encoding='utf-8') as visit_notification_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO visit_notification '
+                                      '(id, client_id, visit_id, salon_id, service_id, salon_service_id, '
+                                      'record_id, notification_time, status, cdate) '
+                                      'VALUES', file=visit_notification_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\', {row[8]}, \'{row[9]}\''
+                                    f' ),', file=visit_notification_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\', {row[8]}, \'{row[9]}\''
+                                    f');', file=visit_notification_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO visit_notification '
+                                      '(id, client_id, visit_id, salon_id, service_id, salon_service_id, '
+                                      'record_id, notification_time, status, cdate) '
+                                      'VALUES', file=visit_notification_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\', {row[8]}, \'{row[9]}\''
+                                    f');',
+                                    file=visit_notification_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\', {row[8]}, \'{row[9]}\''
+                                    f'),', file=visit_notification_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'visit_notification_backup готов \n')
+
+    def visit_notification_setting(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит визитов\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM visit_notification_setting ' \
+                        f'WHERE visit_id ' \
+                        f'IN ({visit_ids_str});'
+                cursor.execute(query)
+                visit_notification_rows = cursor.fetchall()
+                cursor.close()
+                if not visit_notification_rows:
+                    console_text.insert(tk.END, "Нет записей в visit_notification_setting\n")
+                else:
+                    ids = [item[0] for item in visit_notification_rows]
+                    with open('deleters/visit_notification_setting.sql', 'a') as visit_notification_setting_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM visit_notification_setting WHERE id in ( ',
+                                      file=visit_notification_setting_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=visit_notification_setting_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=visit_notification_setting_file)
+                                        break
+                        else:
+                            print('DELETE FROM visit_notification_setting '
+                                  'WHERE id in ( ', file=visit_notification_setting_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=visit_notification_setting_file)
+                                else:
+                                    print(ids[i], ');', file=visit_notification_setting_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в visit_notification_setting собраны\n')
+
+    def visit_notification_setting_backup(self):
+        if len(self.__visit_ids_global) == 0:
+            console_text.insert(tk.END, "Нет строк в visit_notification_setting для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM visit_notification_setting WHERE ' \
+                        f'visit_id IN ({visit_ids_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет строк в visit_notification_setting для бэкапа\n")
+                else:
+                    with open('backups/visit_notification_setting_backup.sql', 'a',
+                              encoding='utf-8') as visit_notification_setting_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO visit_notification_setting '
+                                      '(id, visit_id, record_id, salon_id, service_id, '
+                                      'salon_service_id, repeat_days_step, cdate) '
+                                      'VALUES', file=visit_notification_setting_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\''
+                                    f' ),', file=visit_notification_setting_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\''
+                                    f');', file=visit_notification_setting_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO visit_notification_setting '
+                                      '(id, visit_id, record_id, salon_id, service_id, '
+                                      'salon_service_id, repeat_days_step, cdate) '
+                                      'VALUES', file=visit_notification_setting_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\''
+                                    f');',
+                                    file=visit_notification_setting_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, {row[3]}, {row[4]}, {row[5]}'
+                                    f'{row[6]}, \'{row[7]}\''
+                                    f'),', file=visit_notification_setting_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'visit_notification_setting_backup готов \n')
+
+    def medicine_appointments(self):
+        global medicine_appontment_str
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM medicine_appointments ' \
+                        f'WHERE record_id ' \
+                        f'IN ({self.__records_list});'
+                cursor.execute(query)
+                records_labels_link_rows = cursor.fetchall()
+                cursor.close()
+                if not records_labels_link_rows:
+                    console_text.insert(tk.END, "Нет записей в medicine_appointments\n")
+                else:
+                    ids = [item[0] for item in records_labels_link_rows]
+                    medicine_appontment_str = ' ,'.join(f"'{val}'" for val in ids)
+                    with open('deleters/medicine_appointments.sql', 'a') as medicine_appointments_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM medicine_appointments WHERE id in ( ',
+                                      file=medicine_appointments_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=medicine_appointments_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=medicine_appointments_file)
+                                        break
+                        else:
+                            print('DELETE FROM medicine_appointments WHERE id in ( ', file=medicine_appointments_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=medicine_appointments_file)
+                                else:
+                                    print(ids[i], ');', file=medicine_appointments_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в medicine_appointments собраны\n')
+
+    def medicine_appointments_backup(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM medicine_appointments WHERE ' \
+                        f'record_id IN ({self.__records_list});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей medicine_appointments для бэкапа\n")
+                else:
+                    with open('backups/medicine_appointments_backup.sql', 'a',
+                              encoding='utf-8') as medicine_appointments_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO medicine_appointments '
+                                      '(id, salon_id, record_id) '
+                                      'VALUES', file=medicine_appointments_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f' ),', file=medicine_appointments_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');', file=medicine_appointments_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO medicine_appointments '
+                                      '(id, salon_id, record_id) '
+                                      'VALUES', file=medicine_appointments_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');',
+                                    file=medicine_appointments_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f'),', file=medicine_appointments_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'medicine_appointments_backup готов \n')
+
+    def medicine_appointment_field_values(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM medicine_appointment_field_values ' \
+                        f'WHERE medicine_appointment_id ' \
+                        f'IN ({medicine_appontment_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей в medicine_appointment_field_values\n")
+                else:
+                    ids = [item[0] for item in result]
+                    with open('deleters/medicine_appointment_field_values.sql', 'a') as medicine_appointment_field_values_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM medicine_appointment_field_values WHERE id in ( ',
+                                      file=medicine_appointment_field_values_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=medicine_appointment_field_values_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=medicine_appointment_field_values_file)
+                                        break
+                        else:
+                            print('DELETE FROM medicine_appointment_field_values WHERE id in ( ', file=medicine_appointment_field_values_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=medicine_appointment_field_values_file)
+                                else:
+                                    print(ids[i], ');', file=medicine_appointment_field_values_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в medicine_appointment_field_values собраны\n')
+
+    def medicine_appointment_field_values_backup(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM medicine_appointment_field_values WHERE medicine_appointment_id ' \
+                        f'IN IN ({medicine_appontment_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей medicine_appointment_field_values для бэкапа\n")
+                else:
+                    with open('backups/medicine_appointment_field_values_backup.sql', 'a',
+                              encoding='utf-8') as medicine_appointment_field_values_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO medicine_appointment_field_values '
+                                      '(id, salon_id, medicine_appointment_id, medicine_appointment_salon_field_id, value) '
+                                      'VALUES', file=medicine_appointment_field_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},{row[3]}, \'{row[4]}\''
+                                    f' ),', file=medicine_appointment_field_values_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},{row[3]}, \'{row[4]}\''
+                                    f');', file=medicine_appointment_field_values_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO medicine_appointment_field_values '
+                                      '(id, salon_id, medicine_appointment_id, medicine_appointment_salon_field_id, value) '
+                                      'VALUES', file=medicine_appointment_field_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},{row[3]}, \'{row[4]}\''
+                                    f');',
+                                    file=medicine_appointment_field_values_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},{row[3]}, \'{row[4]}\''
+                                    f'),', file=medicine_appointment_field_values_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'medicine_appointment_field_values_backup готов \n')
+
 
 def start_application():
     # Собираю входные значения для ЭК
@@ -1596,22 +2126,14 @@ def start_application():
 
     # Вызываю все методы по порядку и вывожу информацию в консоль
     records.delete_standart()
-    console_text.insert(tk.END, "Метод delete_standart выполнен.\n")
     records.tt_records_backup()
-    console_text.insert(tk.END, "Метод tt_records_backup выполнен.\n")
     if deleted != '1':
         records.client_visits_delete()
-        console_text.insert(tk.END, "Метод client_visits_delete выполнен.\n")
         records.client_visits_backup()
-        console_text.insert(tk.END, "Метод client_visits_backup выполнен.\n")
     records.tt_services_delete()
-    console_text.insert(tk.END, "Метод tt_services_delete выполнен. \n")
     records.tt_services_backup()
-    console_text.insert(tk.END, "Метод tt_services_backup выполнен. \n")
     records.master_tips()
-    console_text.insert(tk.END, 'master_tips выполнен\n')
     records.master_tips_backup()
-    console_text.insert(tk.END, 'master_tips_backup выполнен\n')
     records.master_tips_invoices()
     records.master_tips_invoices_backup()
     records.tips_invoces()
@@ -1636,6 +2158,18 @@ def start_application():
     records.presetted_record_links_backup()
     records.reception_qr_record_bind()
     records.reception_qr_record_bind_backup()
+    records.records_labels_link()
+    records.records_labels_link_backup()
+    records.loyalty_group_clients_referral_links()
+    records.loyalty_group_clients_referral_links_backup()
+    records.visit_notification()
+    records.visit_notification_backup()
+    records.visit_notification_setting()
+    records.visit_notification_setting_backup()
+    records.medicine_appointments()
+    records.medicine_appointments_backup()
+    records.medicine_appointment_field_values()
+    records.medicine_appointment_field_values_backup()
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
@@ -1702,12 +2236,10 @@ console_text.insert(tk.END, 'Дату можно ввести руками ил�
 console_text.insert(tk.END, 'Доверяй, но проверяй. \nПосмотри, что бы готовые файлы не имели ошибок\n')
 window.mainloop()
 
-# ██████▒▒▒▒ 70% Боевой готовности
-# Не забудь что то придумать с лояльностью. Например добавить чекбоксы "удалить транзакции!! IMPORTANT! first_priority!
-# лояльности по абонементам и сертификатам проданным в визитах". Не забудь обработать сами визиты IMPORTANT! first_priority!
-# и удалить транзакции в них. IMPORTANT! first_priority!
+# ████████▒▒ 80% Боевой готовности
+# Не забудь что то придумать с лояльностью. Например добавить чекбоксы "удалить транзакции!!
+# лояльности по абонементам и сертификатам проданным в визитах".
 # Опциональная возможность списать с карт лояльности сумму транзакций или выпилить карты лояльности у клиентов массово
-# Оставшиеся таблицы для обработки скриптом(не часто используются): records_label_links
 # блокируют ли отзывы удаление записей (master_comments)
 
 # ожидаемые функции которые можно вынести отдельным окном или попробовать сделать свою интеграцию:
