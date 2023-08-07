@@ -271,7 +271,7 @@ class Records:
                     print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
                           f'{row[9]},\'{row[10]}\',{row[11]},{row[12]}),', file=cv_backup)
                     counter += 1
-                elif counter == 5000 or counter == len(result) - 1:
+                elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
                     print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
                           f'{row[9]},\'{row[10]}\',{row[11]},{row[12]});', file=cv_backup)
                     counter = 0
@@ -1126,7 +1126,7 @@ class Records:
                                 print(
                                     f'({row[0]},\'{row[1]}\',{row[2]},{row[3]},{row[4]}, \'{row[5]}\', \'{row[6]}\' ),', file=tt_resources_occupation_backup)
                                 counter += 1
-                            elif counter == 5000 or counter == len(result) - 1:
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
                                 print(
                                     f'({row[0]},\'{row[1]}\',{row[2]},{row[3]},{row[4]}, \'{row[5]}\', \'{row[6]}\');', file=tt_resources_occupation_backup)
                                 counter = 0
@@ -1211,7 +1211,7 @@ class Records:
                                     f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]}'
                                     f' ),', file=records_from_google_backup)
                                 counter += 1
-                            elif counter == 5000 or counter == len(result) - 1:
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
                                 print(
                                     f'({row[0]}, {row[1]}, \'{row[2]}\', \'{row[3]}\', '
                                     f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,{row[8]} '
@@ -1309,7 +1309,7 @@ class Records:
                                     f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,\'{row[8]}\''
                                     f' ),', file=invoice_record_links_backup)
                                 counter += 1
-                            elif counter == 5000 or counter == len(result) - 1:
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
                                 print(
                                     f'({row[0]}, \'{row[1]}\', {row[2]}, {row[3]}, '
                                     f'{row[4]}, {row[5]}, {row[6]}, \'{row[7]}\' ,\'{row[8]}\' '
@@ -1406,6 +1406,174 @@ class Records:
                                 counter += 1
                         console_text.insert(tk.END, 'invoices_record_backup backup готов \n')
 
+    def presetted_record_links(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM presetted_record_links ' \
+                        f'WHERE tt_record_id ' \
+                        f'IN ({self.__records_list});'
+                cursor.execute(query)
+                presetted_record_links_rows = cursor.fetchall()
+                cursor.close()
+                if not presetted_record_links_rows:
+                    console_text.insert(tk.END, "Нет записей в presetted_record_links\n")
+                else:
+                    ids = [item[0] for item in presetted_record_links_rows]
+                    with open('deleters/presetted_record_links.sql', 'a') as presetted_record_links_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM presetted_record_links WHERE id in ( ',
+                                      file=presetted_record_links_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=presetted_record_links_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=presetted_record_links_file)
+                                        break
+                        else:
+                            print('DELETE FROM presetted_record_links WHERE id in ( ', file=presetted_record_links_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=presetted_record_links_file)
+                                else:
+                                    print(ids[i], ');', file=presetted_record_links_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в presetted_record_links собраны\n')
+
+    def presetted_record_links_backup(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей presetted_record_links бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM presetted_record_links WHERE ' \
+                        f'tt_record_id IN ({self.__records_list});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей presetted_record_links для бэкапа\n")
+                else:
+                    with open('backups/presetted_record_links_backup.sql', 'a',
+                              encoding='utf-8') as presetted_record_links_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO presetted_record_links '
+                                      '(id, salon_id, tt_record_id) '
+                                      'VALUES', file=presetted_record_links_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f' ),', file=presetted_record_links_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');', file=presetted_record_links_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO presetted_record_links '
+                                      '(id, salon_id, tt_record_id) '
+                                      'VALUES', file=presetted_record_links_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f');',
+                                    file=presetted_record_links_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}'
+                                    f'),', file=presetted_record_links_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'presetted_record_links_backup готов \n')
+
+    def reception_qr_record_bind(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id ' \
+                        f'FROM reception_qr_record_bind ' \
+                        f'WHERE record_id ' \
+                        f'IN ({self.__records_list});'
+                cursor.execute(query)
+                reception_qr_record_bind_rows = cursor.fetchall()
+                cursor.close()
+                if not reception_qr_record_bind_rows:
+                    console_text.insert(tk.END, "Нет записей в presetted_record_links\n")
+                else:
+                    ids = [item[0] for item in reception_qr_record_bind_rows]
+                    with open('deleters/reception_qr_record_bind.sql', 'a') as reception_qr_record_bind_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM reception_qr_record_bind WHERE id in ( ',
+                                      file=reception_qr_record_bind_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=reception_qr_record_bind_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=reception_qr_record_bind_file)
+                                        break
+                        else:
+                            print('DELETE FROM reception_qr_record_bind WHERE id in ( ', file=reception_qr_record_bind_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=reception_qr_record_bind_file)
+                                else:
+                                    print(ids[i], ');', file=reception_qr_record_bind_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в reception_qr_record_bind собраны\n')
+
+    def reception_qr_record_bind_backup(self):
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, "Нет записей reception_qr_record_bind для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM reception_qr_record_bind WHERE ' \
+                        f'record_id IN ({self.__records_list});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей reception_qr_record_bind для бэкапа\n")
+                else:
+                    with open('backups/reception_qr_record_bind_backup.sql', 'a',
+                              encoding='utf-8') as reception_qr_record_bind_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO reception_qr_record_bind '
+                                      '(id, salon_id, record_id, activation_datetime, is_active) '
+                                      'VALUES ', file=reception_qr_record_bind_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, \'{row[3]}\', {row[4]}'
+                                    f' ),', file=reception_qr_record_bind_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, \'{row[3]}\', {row[4]}'
+                                    f');', file=reception_qr_record_bind_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO reception_qr_record_bind '
+                                      '(id, salon_id, record_id, activation_datetime, is_active) '
+                                      'VALUES ', file=reception_qr_record_bind_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, \'{row[3]}\', {row[4]}'
+                                    f');',
+                                    file=reception_qr_record_bind_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]}, \'{row[3]}\', {row[4]}'
+                                    f'),', file=reception_qr_record_bind_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'reception_qr_record_bind_backup готов \n')
+
 
 def start_application():
     # Собираю входные значения для ЭК
@@ -1464,6 +1632,10 @@ def start_application():
     records.invoice_record_links_backup()
     records.invoces_record()
     records.invoices_records_backup()
+    records.presetted_record_links()
+    records.presetted_record_links_backup()
+    records.reception_qr_record_bind()
+    records.reception_qr_record_bind_backup()
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
@@ -1530,15 +1702,12 @@ console_text.insert(tk.END, 'Дату можно ввести руками ил�
 console_text.insert(tk.END, 'Доверяй, но проверяй. \nПосмотри, что бы готовые файлы не имели ошибок\n')
 window.mainloop()
 
-# ██████▒▒▒▒ 65% Боевой готовности
+# ██████▒▒▒▒ 70% Боевой готовности
 # Не забудь что то придумать с лояльностью. Например добавить чекбоксы "удалить транзакции!! IMPORTANT! first_priority!
 # лояльности по абонементам и сертификатам проданным в визитах". Не забудь обработать сами визиты IMPORTANT! first_priority!
 # и удалить транзакции в них. IMPORTANT! first_priority!
 # Опциональная возможность списать с карт лояльности сумму транзакций или выпилить карты лояльности у клиентов массово
-# Оставшиеся таблицы для обработки скриптом(не часто используются): google_booking_records, invoice(invoice_record_links),
-# presetted_record_links, record_resource_instances_link, reception_qr_record_bind, tt_records_changes,
-# records_label_links
-# Проверить таблицы _old, проверить
+# Оставшиеся таблицы для обработки скриптом(не часто используются): records_label_links
 # блокируют ли отзывы удаление записей (master_comments)
 
 # ожидаемые функции которые можно вынести отдельным окном или попробовать сделать свою интеграцию:
