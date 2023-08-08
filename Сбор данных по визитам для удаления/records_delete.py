@@ -34,7 +34,10 @@ records_from_google_list_str = ''
 visit_ids_str =''
 medicine_appontment_str = ''
 medicine_appontment_list = []
-
+resources_custom_fields_values_list = []
+resources_custom_fields_values_str = ''
+custom_fields_values_id_str = ''
+cfv_id =[]
 def validate_date(date):
     try:
         new_date = datetime.strptime(date, '%Y-%m-%d').date()
@@ -2106,6 +2109,238 @@ class Records:
                                 counter += 1
                         console_text.insert(tk.END, 'medicine_appointment_field_values_backup готов \n')
 
+    def resources_custom_fields_values(self):
+        global resources_custom_fields_values_list, resources_custom_fields_values_str, custom_fields_values_id_str, cfv_id
+        if len(self.__tt_record_ids_global) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит записей\n')
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT id, custom_fields_values_id ' \
+                        f'FROM resources_custom_fields_values ' \
+                        f'WHERE resource_id IN ({self.__records_list}) ' \
+                        f'AND resource_slug = \'record\';'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей в resources_custom_fields_values\n")
+                else:
+                    ids = [item[0] for item in result]
+                    resources_custom_fields_values_list = copy.deepcopy(ids)
+                    resources_custom_fields_values_str = ', '.join([f'"{val}"' for val in resources_custom_fields_values_list])
+                    cfv_id = [item[1] for item in result]
+                    custom_fields_values_id_str = ', '.join([f"'{val}'" for val in cfv_id])
+                    with open('deleters/resources_custom_fields_values.sql', 'a') as resources_custom_fields_values_file:
+                        if len(ids) > 5000:
+                            for i in range(len(ids) // 5000 + 1):
+                                print('DELETE FROM resources_custom_fields_values WHERE id in ( ',
+                                      file=resources_custom_fields_values_file)
+                                for j in range(5000):
+                                    id = ids.pop(0)
+                                    print(id, ', ', file=resources_custom_fields_values_file)
+                                    if len(ids) == 1 or j == 4999:
+                                        id = ids.pop(0)
+                                        print(id, ');', file=resources_custom_fields_values_file)
+                                        break
+                        else:
+                            print('DELETE FROM resources_custom_fields_values WHERE id in ( ', file=resources_custom_fields_values_file)
+                            for i in range(len(ids)):
+                                if i != len(ids) - 1:
+                                    print(ids[i], ', ', file=resources_custom_fields_values_file)
+                                else:
+                                    print(ids[i], ');', file=resources_custom_fields_values_file)
+
+                        console_text.insert(tk.END, 'Удаление записей в resources_custom_fields_values собраны\n')
+
+    def resources_custom_fields_values_backup(self):
+        if len(resources_custom_fields_values_list) == 0:
+            console_text.insert(tk.END, "Нет записей resources_custom_fields_values для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM resources_custom_fields_values WHERE id ' \
+                        f'IN ({resources_custom_fields_values_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей resources_custom_fields_values для бэкапа\n")
+                else:
+                    with open('backups/resources_custom_fields_values_backup.sql', 'a',
+                              encoding='utf-8') as resources_custom_fields_values_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO resources_custom_fields_values (id, resource_id, '
+                                      'resource_slug, custom_fields_salon_resource_id, custom_fields_values_id) '
+                                      'VALUES', file=resources_custom_fields_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\',{row[3]}, {row[4]}'
+                                    f' ),', file=resources_custom_fields_values_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\',{row[3]}, {row[4]}'
+                                    f');', file=resources_custom_fields_values_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO resources_custom_fields_values (id, resource_id, '
+                                      'resource_slug, custom_fields_salon_resource_id, custom_fields_values_id) '
+                                      'VALUES', file=resources_custom_fields_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\',{row[3]}, {row[4]}'
+                                    f');',
+                                    file=resources_custom_fields_values_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, \'{row[2]}\',{row[3]}, {row[4]}'
+                                    f'),', file=resources_custom_fields_values_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'resources_custom_fields_values_backup готов \n')
+
+    def custom_fields_values(self):
+        if len(cfv_id) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит доп.полей\n')
+        else:
+            ids = copy.deepcopy(cfv_id)
+            with open('deleters/custom_fields_values.sql', 'a') as custom_fields_values_file:
+                if len(ids) > 5000:
+                    for i in range(len(ids) // 5000 + 1):
+                        print('DELETE FROM custom_fields_values WHERE id in ( ', file=custom_fields_values_file)
+                        for j in range(5000):
+                            id = ids.pop(0)
+                            print(id, ', ', file=custom_fields_values_file)
+                            if len(ids) == 1 or j == 4999:
+                                id = ids.pop(0)
+                                print(id, ');', file=custom_fields_values_file)
+                                break
+                else:
+                    print('DELETE FROM custom_fields_values WHERE id in ( ', file=custom_fields_values_file)
+                    for i in range(len(ids)):
+                        if i != len(ids) - 1:
+                            print(ids[i], ', ', file=custom_fields_values_file)
+                        else:
+                            print(ids[i], ');', file=custom_fields_values_file)
+                console_text.insert(tk.END, 'Удаление записей в custom_fields_values собраны\n')
+
+    def custom_fields_values_backup(self):
+        if len(cfv_id) == 0:
+            console_text.insert(tk.END, "Нет записей custom_fields_values для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM custom_fields_values WHERE id ' \
+                        f'IN ({custom_fields_values_id_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей custom_fields_values для бэкапа\n")
+                else:
+                    with open('backups/custom_fields_values_backup.sql', 'a',
+                              encoding='utf-8') as custom_fields_values_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO custom_fields_values (id, custom_fields_type_id, '
+                                      'user_id, date_create) '
+                                      'VALUES', file=custom_fields_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},\'{row[3]}\''
+                                    f' ),', file=custom_fields_values_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},\'{row[3]}\''
+                                    f');', file=custom_fields_values_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO custom_fields_values (id, custom_fields_type_id, '
+                                      'user_id, date_create) '
+                                      'VALUES', file=custom_fields_values_backup)
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},\'{row[3]}\''
+                                    f');',
+                                    file=custom_fields_values_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, {row[1]}, {row[2]},\'{row[3]}\''
+                                    f'),', file=custom_fields_values_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'custom_fields_values готов \n')
+
+    def custom_fields_scalar_values(self):
+        if len(cfv_id) == 0:
+            console_text.insert(tk.END, 'Выборка не содержит доп.полей\n')
+        else:
+            ids = copy.deepcopy(cfv_id)
+            with open('deleters/custom_fields_scalar_values.sql', 'a') as custom_fields_scalar_values_file:
+                if len(ids) > 5000:
+                    for i in range(len(ids) // 5000 + 1):
+                        print('DELETE FROM custom_fields_scalar_values WHERE id in ( ', file=custom_fields_scalar_values_file)
+                        for j in range(5000):
+                            id = ids.pop(0)
+                            print(id, ', ', file=custom_fields_scalar_values_file)
+                            if len(ids) == 1 or j == 4999:
+                                id = ids.pop(0)
+                                print(id, ');', file=custom_fields_scalar_values_file)
+                                break
+                else:
+                    print('DELETE FROM custom_fields_scalar_values WHERE id in ( ', file=custom_fields_scalar_values_file)
+                    for i in range(len(ids)):
+                        if i != len(ids) - 1:
+                            print(ids[i], ', ', file=custom_fields_scalar_values_file)
+                        else:
+                            print(ids[i], ');', file=custom_fields_scalar_values_file)
+                console_text.insert(tk.END, 'Удаление записей в custom_fields_scalar_values собраны\n')
+
+    def custom_fields_scalar_values_backup(self):
+        if len(cfv_id) == 0:
+            console_text.insert(tk.END, "Нет записей custom_fields_scalar_values для бэкапа\n")
+        else:
+            with connection.cursor() as cursor:
+                query = f'SELECT * FROM custom_fields_scalar_values WHERE custom_fields_values_id ' \
+                        f'IN ({custom_fields_values_id_str});'
+                cursor.execute(query)
+                result = cursor.fetchall()
+                cursor.close()
+                if not result:
+                    console_text.insert(tk.END, "Нет записей custom_fields_scalar_values для бэкапа\n")
+                else:
+                    with open('backups/custom_fields_scalar_values_backup.sql', 'a',
+                              encoding='utf-8') as custom_fields_scalar_values_backup:
+                        counter = 0
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0 and len(result) > 1:
+                                print('INSERT INTO custom_fields_scalar_values '
+                                      '(custom_fields_values_id, value) '
+                                      'VALUES', file=custom_fields_scalar_values_backup)
+                                print(
+                                    f'({row[0]}, \'{row[1]}\''
+                                    f' ),', file=custom_fields_scalar_values_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                                print(
+                                    f'({row[0]}, \'{row[1]}\''
+                                    f');', file=custom_fields_scalar_values_backup)
+                                counter = 0
+                            elif counter == 0 and len(result) == 1:
+                                print('INSERT INTO custom_fields_scalar_values '
+                                      '(custom_fields_values_id, value) '
+                                      'VALUES', file=custom_fields_scalar_values_backup)
+                                print(
+                                    f'({row[0]}, \'{row[1]}\''
+                                    f');',
+                                    file=custom_fields_scalar_values_backup)
+                            else:
+                                print(
+                                    f'({row[0]}, \'{row[1]}\''
+                                    f'),', file=custom_fields_scalar_values_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'custom_fields_scalar_values_backup готов \n')
+
+
 
 def start_application():
     # Собираю входные значения для ЭК
@@ -2172,6 +2407,12 @@ def start_application():
     records.medicine_appointments_backup()
     records.medicine_appointment_field_values()
     records.medicine_appointment_field_values_backup()
+    records.resources_custom_fields_values()
+    records.resources_custom_fields_values_backup()
+    records.custom_fields_values()
+    records.custom_fields_values_backup()
+    records.custom_fields_scalar_values()
+    records.custom_fields_scalar_values_backup()
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
