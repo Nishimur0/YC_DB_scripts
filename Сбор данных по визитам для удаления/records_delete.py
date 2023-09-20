@@ -106,7 +106,7 @@ class Records:
                                  f'and date <= "{self.__date_to} 23:59:59" ' \
                                  f'and salon_id = {self.__salon_id} ' \
                                  f'and cdate >= "{self.__cdate_from} 00:00:00" ' \
-                                 f'and cdate <= "{self.__cdate_to} 00:00:00" ' \
+                                 f'and cdate <= "{self.__cdate_to} 23:59:59" ' \
                                  f'and deleted in ({", ".join(str(n) for n in self.__deleted)});'
 
                 #Дата записи, дата создания и пользователь
@@ -114,7 +114,7 @@ class Records:
                                           f'and date <= "{self.__date_to} 23:59:59" ' \
                                           f'and salon_id = {self.__salon_id} ' \
                                           f'and cdate >= "{self.__cdate_from} 00:00:00" ' \
-                                          f'and cdate <= "{self.__cdate_to} 00:00:00" ' \
+                                          f'and cdate <= "{self.__cdate_to} 23:59:59" ' \
                                           f'and user_id = {self.__user_id} ' \
                                           f'and deleted in ({", ".join(str(n) for n in self.__deleted)});'
 
@@ -134,7 +134,7 @@ class Records:
                 result = cursor.fetchall()
                 time.sleep(2)
                 if not result:
-                    console_text.insert(tk.END,"Результат пустой. Проверь запрос снова\n")
+                    console_text.insert(tk.END,"\nРезультат пустой. Проверь запрос снова\n")
 
                 else:
                     ids = [item[0] for item in result]
@@ -158,8 +158,8 @@ class Records:
                                     print(ids[i], ', ', file=tr_file)
                                 else:
                                     print(ids[i], ');', file=tr_file)
+                    console_text.insert(tk.END, 'tt_records готов\n')
         finally:
-            console_text.insert(tk.END,'tt_records готов\n')
             cursor.close()
 
     def tt_records_backup(self):
@@ -173,48 +173,50 @@ class Records:
                     cursor.execute(sql)
                     result = cursor.fetchall()
                     time.sleep(2)
-            with open('backups/tt_records_backup.sql', 'a', encoding='utf-8') as tr_backup:
-                counter = 0
-                for row in result:
-                    row = tuple('null' if x is None else x for x in row)
-                    if counter == 0:
-                        print('INSERT INTO tt_records (id,created_user_id,first_client_id,salon_id,master_id,service_id,'
-                              'user_id,client_id,comer_id,cdate,date,comment,fictive_client_name,fictive_client_email,'
-                              'fictive_client_phone,length,lastchange,cost,discount,slot_id,deleted,confirmed,sms_before,'
-                              'sms_now,sms_now_text,email_now,notified,uid_deleter,type,partner_id,partner_record_id,bookform_id,'
-                              'autopayment_status,master_request,api_id,ya_type,from_url,review_requested,visit_attendance,'
-                              'GCal_id,master_google_cal,hash,is_mobile,paid_full,custom_color,token,activity_id,prepaid_status,'
-                              'visit_id,clients_count) VALUES', file=tr_backup)
-                        print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
-                              f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
-                              f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
-                              f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
-                              f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
-                              f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
-                              f'\'{row[44]}\','
-                              f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]}),', file=tr_backup)
-                        counter += 1
-                    elif counter == 5000 or counter == len(result)-1:
-                        print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
-                              f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
-                              f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
-                              f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
-                              f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
-                              f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
-                              f'\'{row[44]}\','
-                              f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]});', file=tr_backup)
+                    with open('backups/tt_records_backup.sql', 'a', encoding='utf-8') as tr_backup:
                         counter = 0
-                    else:
-                        print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
-                              f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
-                              f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
-                              f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
-                              f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
-                              f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
-                              f'\'{row[44]}\','
-                              f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]}),', file=tr_backup)
-                        counter += 1
-                console_text.insert(tk.END, 'tt_records_bakcup готов \n')
+                        for row in result:
+                            row = tuple('null' if x is None else x for x in row)
+                            if counter == 0:
+                                print('INSERT INTO tt_records (id,created_user_id,first_client_id,salon_id,master_id,service_id,'
+                                      'user_id,client_id,comer_id,cdate,date,comment,fictive_client_name,fictive_client_email,'
+                                      'fictive_client_phone,length,lastchange,cost,discount,slot_id,deleted,confirmed,sms_before,'
+                                      'sms_now,sms_now_text,email_now,notified,uid_deleter,type,partner_id,partner_record_id,bookform_id,'
+                                      'autopayment_status,master_request,api_id,ya_type,from_url,review_requested,visit_attendance,'
+                                      'GCal_id,master_google_cal,hash,is_mobile,paid_full,custom_color,token,activity_id,prepaid_status,'
+                                      'visit_id,clients_count) VALUES', file=tr_backup)
+                                print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
+                                      f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
+                                      f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
+                                      f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
+                                      f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
+                                      f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
+                                      f'\'{row[44]}\','
+                                      f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]}),', file=tr_backup)
+                                counter += 1
+                            elif counter == 5000 or counter == len(result)-1:
+                                print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
+                                      f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
+                                      f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
+                                      f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
+                                      f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
+                                      f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
+                                      f'\'{row[44]}\','
+                                      f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]});', file=tr_backup)
+                                counter = 0
+                            else:
+                                print(f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
+                                      f'\'{row[9]}\',\'{row[10]}\',\'{row[11]}\',\'{row[12]}\',\'{row[13]}\', '
+                                      f'\'{row[14]}\',{row[15]},\'{row[16]}\',{row[17]}, '
+                                      f'{row[18]},{row[19]},{row[20]},{row[21]},{row[22]},{row[23]},\'{row[24]}\',{row[25]},{row[26]}, '
+                                      f'{row[27]},{row[28]},{row[29]},\'{row[30]}\',{row[31]},{row[32]},{row[33]},\'{row[34]}\',\'{row[35]}\', '
+                                      f'\'{row[36]}\',{row[37]},{row[38]},\'{row[39]}\',\'{row[40]}\',\'{row[41]}\',{row[42]},{row[43]}, '
+                                      f'\'{row[44]}\','
+                                      f'\'{row[45]}\',{row[46]},{row[47]},{row[48]},{row[49]}),', file=tr_backup)
+                                counter += 1
+                        console_text.insert(tk.END, 'tt_records_bakcup готов \n')
+                else:
+                    console_text.insert(tk.END, "Нет записей\n")
         finally:
             cursor.close()
 
@@ -331,7 +333,7 @@ class Records:
 
     def tt_services_backup(self):
         if len(self.__tt_record_ids_global) == 0:
-            console_text.insert(tk.END, "Нет Записей для удаления\n")
+            console_text.insert(tk.END, "Нет строк в tt_services\n")
         else:
             with connection.cursor() as cursor:
                 records_list = copy.deepcopy(self.__tt_record_ids_global)
@@ -418,7 +420,7 @@ class Records:
                 cursor.close()
 
                 if not result_mt:
-                    console_text.insert(tk.END, "Нет услуг в записях\n")
+                    console_text.insert(tk.END, "Нет чаевых в записях\n")
                 else:
                     with open('backups/master_tips_backup.sql', 'a', encoding='utf-8') as mt_backup:
                         counter = 0
@@ -635,7 +637,7 @@ class Records:
                 else:
                     console_text.insert(tk.END, 'Нет документов для удаления\n')
 
-                if not result:
+                if len(self.__tt_record_ids_global) ==0 and len(self.__visit_ids_global) ==0:
                     console_text.insert(tk.END, 'Завершение команды\n')
                 else:
                     self.__documents_list = [item[0] for item in result]
@@ -1159,7 +1161,7 @@ class Records:
         global records_from_google_list
         global records_from_google_list_str
         if len(self.__tt_record_ids_global) <= 0:
-            console_text.insert(tk.END, 'Выборка не содержит записей через google')
+            console_text.insert(tk.END, 'Выборка не содержит записей через google\n')
         else:
             with connection.cursor() as cursor:
                 query = f'SELECT id ' \
@@ -1615,7 +1617,7 @@ class Records:
                                         print(id, ');', file=records_labels_link_rows_file)
                                         break
                         else:
-                            print('DELETE FROM records_labels_link WHERE id in ( ', file=records_labels_link_rows_file)
+                            print('DELETE FROM records_labels_link WHERE record_id in ( ', file=records_labels_link_rows_file)
                             for i in range(len(ids)):
                                 if i != len(ids) - 1:
                                     print(ids[i], ', ', file=records_labels_link_rows_file)
@@ -2277,7 +2279,7 @@ class Records:
             with open('deleters/custom_fields_scalar_values.sql', 'a') as custom_fields_scalar_values_file:
                 if len(ids) > 5000:
                     for i in range(len(ids) // 5000 + 1):
-                        print('DELETE FROM custom_fields_scalar_values WHERE id in ( ', file=custom_fields_scalar_values_file)
+                        print('DELETE FROM custom_fields_scalar_values WHERE custom_fields_values_id in ( ', file=custom_fields_scalar_values_file)
                         for j in range(5000):
                             id = ids.pop(0)
                             print(id, ', ', file=custom_fields_scalar_values_file)
@@ -2286,7 +2288,7 @@ class Records:
                                 print(id, ');', file=custom_fields_scalar_values_file)
                                 break
                 else:
-                    print('DELETE FROM custom_fields_scalar_values WHERE id in ( ', file=custom_fields_scalar_values_file)
+                    print('DELETE FROM custom_fields_scalar_values WHERE custom_fields_values_id in ( ', file=custom_fields_scalar_values_file)
                     for i in range(len(ids)):
                         if i != len(ids) - 1:
                             print(ids[i], ', ', file=custom_fields_scalar_values_file)
@@ -2399,10 +2401,6 @@ def start_application():
     records.records_labels_link_backup()
     records.loyalty_group_clients_referral_links()
     records.loyalty_group_clients_referral_links_backup()
-    records.visit_notification()
-    records.visit_notification_backup()
-    records.visit_notification_setting()
-    records.visit_notification_setting_backup()
     records.medicine_appointments()
     records.medicine_appointments_backup()
     records.medicine_appointment_field_values()
@@ -2413,6 +2411,7 @@ def start_application():
     records.custom_fields_values_backup()
     records.custom_fields_scalar_values()
     records.custom_fields_scalar_values_backup()
+    console_text.insert(tk.END, "Готово! Проверь данные!")
 
     # Очистить входные поля после завершения сборки
     date_from_entry.delete(0, tk.END)
@@ -2427,52 +2426,52 @@ window = tk.Tk()
 window.title("Запросы на удаление записей")
 
 # Входные поля
-date_from_label = tk.Label(window, text="Выбери дату от которой искать записи:")
-date_from_label.pack()
+date_from_label = tk.Label(window, text="Дата визита от:")
+date_from_label.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="e")
 date_from_entry = DateEntry(window, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-date_from_entry.pack()
+date_from_entry.grid(row=0, column=1, padx=(0, 10), pady=10, sticky="w")
 
-date_to_label = tk.Label(window, text="Выбери дату до которой искать записи:")
-date_to_label.pack()
+date_to_label = tk.Label(window, text="Дата визита до:")
+date_to_label.grid(row=1, column=0, padx=(10, 5), pady=10, sticky="e")
 date_to_entry = DateEntry(window, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-date_to_entry.pack()
+date_to_entry.grid(row=1, column=1, padx=(0, 10), pady=10, sticky="w")
 
 salon_id_label = tk.Label(window, text="введи ID филиала:")
-salon_id_label.pack()
+salon_id_label.grid(row=2, column=0, padx=(10, 5), pady=10, sticky="e")
 salon_id_entry = tk.Entry(window)
-salon_id_entry.pack()
+salon_id_entry.grid(row=2, column=1, padx=(0, 10), pady=10, sticky="w")
 
-cdate_from_label = tk.Label(window, text="Введи дату создания от которой искать записи. Например 1970-01-01. Иначе оставь пустым: ")
-cdate_from_label.pack()
+cdate_from_label = tk.Label(window, text="Дата создания от\nНапример 1970-01-01. Иначе оставь пустым: ")
+cdate_from_label.grid(row=3, column=0, padx=(10, 5), pady=10, sticky="e")
 cdate_from_entry = tk.Entry(window)
-cdate_from_entry.pack()
+cdate_from_entry.grid(row=3, column=1, padx=(0, 10), pady=10, sticky="w")
 
 
-cdate_to_label = tk.Label(window, text="Введи дату создания до которой искать записи. Например 1970-01-01. Иначе оставь пустым: ")
-cdate_to_label.pack()
+cdate_to_label = tk.Label(window, text="Дата создания до\nНапример 1970-01-01. Иначе оставь пустым: ")
+cdate_to_label.grid(row=4, column=0, padx=(10, 5), pady=5, sticky="e")
 cdate_to_entry = tk.Entry(window)
-cdate_to_entry.pack()
+cdate_to_entry.grid(row=4, column=1, padx=(0, 10), pady=5, sticky="w")
 
-user_id_label = tk.Label(window, text="введи ID пользователя который создал записи. Иначе оставь пустым:")
-user_id_label.pack()
+user_id_label = tk.Label(window, text="Введи ID пользователя который создал записи. \nИначе оставь пустым:")
+user_id_label.grid(row=5, column=0, padx=(10, 5), pady=5, sticky="e")
 user_id_entry = tk.Entry(window)
-user_id_entry.pack()
+user_id_entry.grid(row=5, column=1, padx=(0, 10), pady=5, sticky="w")
 
 options = ['-1', '0', '1']
 selected_option = tk.StringVar(value=options[0])
-del_label = tk.Label(window, text="-1 - удаленные и не удаленные, 0 не удаленные записи, 1 удаленные записи:")
-del_label.pack()
+del_label = tk.Label(window, text="-1 - удаленные и не удаленные, \n0 - не удаленные записи, 1 - удаленные записи:")
+del_label.grid(row=6, column=0, padx=(10, 5), pady=5, sticky="e")
 select = tk.OptionMenu(window,  selected_option, *options)
-select.pack()
+select.grid(row=6, column=1, padx=(0, 10), pady=5, sticky="w")
 
 # Стартер
 start_button = tk.Button(window, text="Запустить", command=start_application)
-start_button.pack()
+start_button.grid(row=7,column=0, padx=0, pady=10, sticky="e")
 
 # Консоль
-console_text = scrolledtext.ScrolledText(window)
+console_text = scrolledtext.ScrolledText(window, height=15, width=60)
 console_text.configure(bg="#1a4780", fg="yellow")
-console_text.pack()
+console_text.grid(row=8, column=0, columnspan=2)
 
 #Предупреждашка для коллег
 console_text.insert(tk.END, 'Дату можно ввести руками или открыть календарь\n')
