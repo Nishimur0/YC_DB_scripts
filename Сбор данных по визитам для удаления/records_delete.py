@@ -265,7 +265,6 @@ class Records:
             cursor.close()
 
     def client_visits_backup(self):
-
         if len(self.__visit_ids_global) >= 1:
             with connection.cursor() as cursor:
                 values_str = ', '.join([f'"{val}"' for val in self.__visit_ids_global])
@@ -275,26 +274,26 @@ class Records:
                 result = cursor.fetchall()
                 time.sleep(2)
                 cursor.close()
-        with open('backups/client_visits_backup.sql', 'a', encoding='utf-8') as cv_backup:
-            counter = 0
-            for row in result:
-                row = tuple('null' if x is None else x for x in row)
-                if counter == 0:
-                    print('insert into client_visits (id, client_id, date, spent_money, attendance, '
-                          'discount, comment, moderation, sms_hours_accept, sms_sended, sms_text, email_hours_accept, '
-                          'email_sended) VALUES', file=cv_backup)
-                    print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
-                          f'{row[9]},\'{row[10]}\',{row[11]},{row[12]}),', file=cv_backup)
-                    counter += 1
-                elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
-                    print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
-                          f'{row[9]},\'{row[10]}\',{row[11]},{row[12]});', file=cv_backup)
+                with open('backups/client_visits_backup.sql', 'a', encoding='utf-8') as cv_backup:
                     counter = 0
-                else:
-                    print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
-                          f'{row[9]},\'{row[10]}\',{row[11]},{row[12]}),', file=cv_backup)
-                    counter += 1
-            console_text.insert(tk.END,'clievnts_visit_backup готов \n')
+                    for row in result:
+                        row = tuple('null' if x is None else x for x in row)
+                        if counter == 0:
+                            print('insert into client_visits (id, client_id, date, spent_money, attendance, '
+                                  'discount, comment, moderation, sms_hours_accept, sms_sended, sms_text, email_hours_accept, '
+                                  'email_sended) VALUES', file=cv_backup)
+                            print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
+                                  f'{row[9]},\'{row[10]}\',{row[11]},{row[12]}),', file=cv_backup)
+                            counter += 1
+                        elif counter == 5000 or counter == len(result) - 1 and len(result) != 1:
+                            print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
+                                  f'{row[9]},\'{row[10]}\',{row[11]},{row[12]});', file=cv_backup)
+                            counter = 0
+                        else:
+                            print(f'({row[0]},{row[1]},\'{row[2]}\',{row[3]},{row[4]},{row[5]},\'{row[6]}\',{row[7]},{row[8]}, '
+                                  f'{row[9]},\'{row[10]}\',{row[11]},{row[12]}),', file=cv_backup)
+                            counter += 1
+                    console_text.insert(tk.END,'clievnts_visit_backup готов \n')
 
 
     def tt_services_delete(self):

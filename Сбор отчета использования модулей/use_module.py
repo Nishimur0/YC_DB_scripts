@@ -5,7 +5,7 @@ from tkinter import scrolledtext
 
 
 def execute_queries_and_export_results(salon_id):
-    # Устанавливаем подключение к базе данных
+    # Устанавливаем подключение к базе данных (Добавь доступы)
     connection = pymysql.connect(
         host='bi.yclients.cloud',
         user='tech_support_ro',
@@ -138,28 +138,23 @@ def set_column_width(sheet):
 
 
 # Вызываем функцию для выполнения запросов и экспорта результатов
-
-
 def process_input():
     salon_id = input_entry.get()
     execute_queries_and_export_results(salon_id)
     input_entry.delete(0, tk.END)
 
 
-# Создаем главное окно Tkinter
 window = tk.Tk()
 window.title("Аналитика использования модулей")
 
-# Создаем поле ввода
 input_entry = tk.Label(window, text="Введи ID филиала")
 input_entry.pack()
 input_entry = tk.Entry(window)
 input_entry.pack()
-# Создаем кнопку для обработки ввода
+
 process_button = tk.Button(window, text="Собрать отчет", command=process_input)
 process_button.pack()
 
-# Создаем консольный вывод
 console_text = scrolledtext.ScrolledText(window)
 console_text.configure(bg="#1a4780", fg="yellow")
 console_text.pack()

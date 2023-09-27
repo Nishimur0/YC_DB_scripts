@@ -10,7 +10,6 @@ config = {
     'host': 'bi.yclients.cloud',
     'database': 'salon'
 }
-# Function to update the SQL statement
 def update_sql_statement():
     custom_fields_resource_id = int(custom_fields_resource_id_entry.get())
     words_to_code = []
@@ -59,11 +58,9 @@ def update_sql_statement():
     result_text2.insert(tk.END, "Бэкап:\n")
     result_text2.insert(tk.END, sql_backup)
 
-# Create the main tkinter window
 root = tk.Tk()
 root.title("Генератор запроса добавить значение доп.поля")
 
-# Create and configure input fields and labels
 custom_fields_resource_id_label = tk.Label(root, text="custom_fields_resource_id:")
 custom_fields_resource_id_label.pack()
 custom_fields_resource_id_entry = tk.Entry(root)
@@ -74,7 +71,6 @@ input_words_label.pack()
 input_words_text = tk.Text(root, height=5, width=40)
 input_words_text.pack()
 
-# Create a text widget to display the SQL statement
 result_text = scrolledtext.ScrolledText(root, width=40, height=10)
 result_text.pack()
 result_text.config(state='disabled')
@@ -82,9 +78,7 @@ result_text2 = scrolledtext.ScrolledText(root, width=40, height=10)
 result_text2.pack()
 result_text2.config(state='disabled')
 
-# Create a button to trigger the update
 generate_button = tk.Button(root, text="Покажи запрос!", command=update_sql_statement)
 generate_button.pack()
 
-# Start the tkinter main loop
 root.mainloop()
