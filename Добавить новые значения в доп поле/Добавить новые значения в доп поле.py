@@ -5,10 +5,10 @@ from tkinter import scrolledtext
 from babel import numbers
 
 config = {
-    'user': 'tech_support_ro',
-    'password': '8maIo&tF@q0lQ9',
-    'host': 'bi.yclients.cloud',
-    'database': 'salon'
+    'user': '',
+    'password': '',
+    'host': '',
+    'database': ''
 }
 def update_sql_statement():
     custom_fields_resource_id = int(custom_fields_resource_id_entry.get())
