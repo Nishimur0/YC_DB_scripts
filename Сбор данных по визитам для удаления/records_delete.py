@@ -10,10 +10,10 @@ from babel import numbers
 
 #Надо не забыть креды спрятать, если буду переносить в flusk
 config = {
-    'user': 'tech_support_ro',
-    'password': '8maIo&tF@q0lQ9',
-    'host': 'bi.yclients.cloud',
-    'database': 'salon'
+    'user': '',
+    'password': '',
+    'host': '',
+    'database': ''
 }
 
 #Подруба к БД (Работает только при подключенном офисном ВПН
