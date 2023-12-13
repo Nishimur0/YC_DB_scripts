@@ -7,10 +7,10 @@ from tkinter import scrolledtext
 def execute_queries_and_export_results(salon_id):
     # Устанавливаем подключение к базе данных (Добавь доступы)
     connection = pymysql.connect(
-        host='bi.yclients.cloud',
-        user='tech_support_ro',
-        password='8maIo&tF@q0lQ9',
-        database='salon'
+        host='',
+        user='',
+        password='',
+        database=''
     )
 
     try:
