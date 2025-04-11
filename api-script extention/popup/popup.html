@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Scripts Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="container">
+  <div class="auth-header">
+    <h3>Авторизация</h3>
+    <button id="toggleAuth">▼</button>
+  </div>
+
+  <div class="auth-section collapsed">
+    <input type="text" id="baseUrl" placeholder="https://yclients.com">
+    <input type="text" id="bearerToken" placeholder="Bearer Token (автоопределение)">
+    <input type="text" id="userToken" placeholder="User Token">
+    <input type="text" id="salonId" placeholder="salonId">
+    <button id="saveAuth">Сохранить</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="api">API</button>
+    <button class="tab-btn" data-tab="dom">DOM</button>
+  </div>
+
+  <div id="api-tab" class="tab-content active">
+    <div class="category-list" id="api-categories"></div>
+  </div>
+
+  <div id="dom-tab" class="tab-content">
+    <div class="category-list" id="dom-categories"></div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+
+
+<div id="settingsModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h3 id="modalTitle">Настройки</h3>
+    <div id="modalFields"></div>
+    <button id="executeWithSettings">Выполнить</button>
+  </div>
+</div>
+</body>
+</html>
