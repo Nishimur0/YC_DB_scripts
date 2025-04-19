@@ -129,7 +129,14 @@ const SCRIPTS_CONFIG = {
     'create_simple_service.js':{
         params:[
             {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
-            {id: 'title', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
+            {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
+            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
+        ]
+    },
+    'createSimpleActivityService.js' :{
+        params:[
+            {id: 'activityCategoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
+            {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
             {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
         ]
     }
@@ -148,7 +155,8 @@ const TRANSLATIONS = {
         'offline': 'Оффлайн записи',
 //        'integration': 'Включить интеграцию',
 //        'pushes': 'Отправка пушей',
-        'individual': 'Индивидуальные'
+        'individual': 'Индивидуальные',
+        'activity': 'Групповые'
     },
     scripts: {
         'authorize.js': 'Авторизоваться',
@@ -159,7 +167,8 @@ const TRANSLATIONS = {
         'createOfflineRecordApiV2.js': 'Создать оффлайн запись (API v2)',
  //       'callbackPhone.js': 'Подключить',
  //       'incoming.js': '(push) Входящий звонок'
-        'create_simple_service.js': 'Создать обычную услугу'
+        'create_simple_service.js': 'Создать обычную услугу',
+        'createSimpleActivityService.js': 'Создать групповую услугу'
 
     }
 };
@@ -194,7 +203,9 @@ async function fetchScriptsStructure(type) {
  //               'pushes': ['incoming.js']
  //           }
             'services': {
-                'individual':['create_simple_service.js']}
+                'individual':['create_simple_service.js'],
+                'activity':['createSimpleActivityService.js']
+            }
         };
     } else {
         return {
