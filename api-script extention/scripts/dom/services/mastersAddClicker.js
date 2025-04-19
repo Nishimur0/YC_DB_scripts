@@ -1,7 +1,7 @@
 (function() {
   const params = window.scriptParams || {
-    count: 20,
-    interval: 500
+    count: 10,
+    interval: 400
   };
 
   console.log('Запуск с параметрами:', params);

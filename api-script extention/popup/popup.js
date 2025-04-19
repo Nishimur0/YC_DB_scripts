@@ -11,6 +11,27 @@ document.querySelector('.auth-section').classList.add('collapsed');
 document.getElementById('toggleAuth').textContent = '▼';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Обработчик клика по кнопке очистки
+    document.getElementById('clearStorage').addEventListener('click', async () => {
+        if (confirm('Вы уверены, что хотите очистить все временные данные (счетчики, ID категорий и т.д.)?')) {
+            try {
+                await chrome.storage.local.remove([
+                    'categoryId',
+                    'categoryCounter',
+                    'serviceCounter',
+                    'serviceAmount',
+                    'recordHash',
+                    'recordId'
+                ]);
+
+                alert('Временные данные успешно очищены!');
+            } catch (error) {
+                console.error('Ошибка очистки:', error);
+                alert('Произошла ошибка при очистке данных');
+            }
+        }
+    });
+
     // Загрузка сохраненных данных
     chrome.storage.local.get(['baseUrl', 'bearerToken', 'userToken', 'salonId'], (data) => {
         document.getElementById('baseUrl').value = data.baseUrl || '';
@@ -78,8 +99,8 @@ const SCRIPTS_CONFIG = {
     'mastersAddClicker.js': {
         displayName: 'Добавить сотрудника',
         params: [
-            { id: 'count', type: 'number', label: 'Количество раз', default: 20, min: 1 },
-            { id: 'interval', type: 'number', label: 'Интервал (мс)', default: 500, min: 100 }
+            { id: 'count', type: 'number', label: 'Количество раз', default: 10, min: 1 },
+            { id: 'interval', type: 'number', label: 'Интервал (мс)', default: 400, min: 100 }
         ]
     },
     'authorize.js': {
@@ -87,6 +108,29 @@ const SCRIPTS_CONFIG = {
         params: [
             { id: 'login', type: 'text', label: 'Логин', default: 'login@gmail.com' },
             { id: 'password', type: 'password', label: 'Пароль', default: 'password' },
+        ]
+    },
+    'callbackPhone.js': {
+        params:[
+            {id: 'appBearer', type: 'text', label: 'Bearer', default: 'pggze4bbkyejdsue4wcu'},
+            {id: 'applicationId', type: 'text', label: 'ApplicationId', default: '38'}
+        ]
+    },
+    'incoming.js': {
+        params:[
+            {id: 'appBearer', type: 'text', label: 'Bearer', default: 'pggze4bbkyejdsue4wcu'},
+            {id: 'crmToken', type: 'text', label: 'crm_token', default: null},
+            {id: 'diversionPhone', type: 'text', label: 'diversionPhone', default: null},
+            {id: 'clientPhone', type: 'text', label: 'clientPhone', default: null},
+            {id: 'callType', type: 'text', label: 'callType', default: 'incoming'}
+
+        ]
+    },
+    'create_simple_service.js':{
+        params:[
+            {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
+            {id: 'title', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
+            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
         ]
     }
 };
@@ -96,11 +140,15 @@ const TRANSLATIONS = {
     categories: {
         'services': 'Услуги',
         'auth': 'Авторизация',
-        'createRecords': 'Создание записей'
+        'createRecords': 'Создание записей',
+//        'phone': 'Телефония'
     },
     subcategories: {
         'online': 'Онлайн записи',
-        'offline': 'Оффлайн записи'
+        'offline': 'Оффлайн записи',
+//        'integration': 'Включить интеграцию',
+//        'pushes': 'Отправка пушей',
+        'individual': 'Индивидуальные'
     },
     scripts: {
         'authorize.js': 'Авторизоваться',
@@ -108,11 +156,24 @@ const TRANSLATIONS = {
         'createOnlineRecord.js': 'Создать онлайн запись',
         'deleteLastCreatedOnlineRecord.js': 'Удалить последнюю запись',
         'createOfflineRecord.js': 'Создать оффлайн запись',
-        'createOfflineRecordApiV2.js': 'Создать оффлайн запись (API v2)'
+        'createOfflineRecordApiV2.js': 'Создать оффлайн запись (API v2)',
+ //       'callbackPhone.js': 'Подключить',
+ //       'incoming.js': '(push) Входящий звонок'
+        'create_simple_service.js': 'Создать обычную услугу'
+
     }
 };
 
 async function loadScriptsStructure() {
+    // Загружаем сохранённый конфиг (если есть)
+    const { scriptsConfig } = await chrome.storage.local.get('scriptsConfig');
+
+    // Обновляем SCRIPTS_CONFIG, если есть сохранённые данные
+    if (scriptsConfig) {
+        Object.assign(SCRIPTS_CONFIG, scriptsConfig);
+    }
+
+    // Далее рендерим интерфейс как обычно
     const apiStructure = await fetchScriptsStructure('api');
     renderCategories('api-categories', apiStructure, 'api');
 
@@ -127,7 +188,13 @@ async function fetchScriptsStructure(type) {
             'createRecords': {
                 'online': ['createOnlineRecord.js', 'deleteLastCreatedOnlineRecord.js'],
                 'offline': ['createOfflineRecord.js', 'createOfflineRecordApiV2.js']
-            }
+            },
+ //           'phone': {
+ //               'integration': ['callbackPhone.js'],
+ //               'pushes': ['incoming.js']
+ //           }
+            'services': {
+                'individual':['create_simple_service.js']}
         };
     } else {
         return {
@@ -249,6 +316,7 @@ function createScriptsList(scripts, type, category, subcategory = null) {
 
     return scriptsList;
 }
+
 
 function showSettingsModal(type, category, scriptName, subcategory = null) {
     const config = SCRIPTS_CONFIG[scriptName];

@@ -10,10 +10,10 @@ from babel import numbers
 
 #Надо не забыть креды спрятать, если буду переносить в flusk
 config = {
-    'user': '',
-    'password': '',
-    'host': '',
-    'database': ''
+    'user': 'tech_support_ro',
+    'password': '8maIo&tF@q0lQ9',
+    'host': 'bi.yclients.cloud',
+    'database': 'salon'
 }
 
 #Подруба к БД (Работает только при подключенном офисном ВПН
@@ -350,14 +350,15 @@ class Records:
                             row = tuple('null' if x is None else x for x in row)
                             if counter == 0:
                                 print('insert into tt_services (id, record_id, service_id, salon_service_id, '
-                                      'technological_card_id, amount, first_cost, cost, discount, master_salary, '
-                                      'manual_cost, amount_cut_cost_loyalty_discount, amount_cut_cost_loyalty_bonus, '
+                                      'tt_service_composite_id, technological_card_id, amount, first_cost, '
+                                      'cost, discount, master_salary, manual_cost, amount_cut_cost_loyalty_discount, '
+                                      'amount_cut_cost_loyalty_bonus, '
                                       'amount_cut_cost_loyalty_certificat, amount_cut_cost_loyalty_abonement, '
                                       'amount_cut_cost_deposits)'
                                       ' VALUES', file=ts_backup)
                                 print(
                                     f'({row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]},{row[8]}, '
-                                    f'{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},{row[15]}),', file=ts_backup)
+                                    f'{row[9]},{row[10]},{row[11]},{row[12]},{row[13]},{row[14]},{row[15]},{row[16]}),', file=ts_backup)
                                 counter += 1
                             elif counter == 5000 or counter == len(result_ts) - 1:
                                 print(
@@ -2392,8 +2393,8 @@ def start_application():
     records.invoice_record_links_backup()
     records.invoces_record()
     records.invoices_records_backup()
-    records.presetted_record_links()
-    records.presetted_record_links_backup()
+    #records.presetted_record_links()
+    #records.presetted_record_links_backup()
     records.reception_qr_record_bind()
     records.reception_qr_record_bind_backup()
     records.records_labels_link()

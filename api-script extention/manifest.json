@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "API & DOM Scripts Manager",
+  "name": "YC API & DOM",
   "version": "1.0",
-  "description": "Управление API и DOM скриптами",
+  "description": "Базовые API и DOM для тестов YC",
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": "icons/icon48.png"
