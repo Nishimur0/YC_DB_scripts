@@ -1,4 +1,4 @@
-async function createSimpleService(params = {}) {
+async function createSimpleComplex(params = {}) {
     try {
         // 1. Получение параметров с дефолтным значением для serviceCounter
         const extensionParams = await getExtensionParams();
@@ -20,34 +20,64 @@ async function createSimpleService(params = {}) {
 
         // 4. Создать категорию, если ее нет
         let categoryExist = await checkCategory(cleanBaseUrl, currentParams);
-        if (!currentParams.categoryId || currentParams.createCategory === null || !categoryExist) {
+        if (!currentParams.complexCategoryId || currentParams.createCategory === null || !categoryExist) {
             console.log('Creating new category...');
             const categoryData = await createCategory(cleanBaseUrl, currentParams);
-            currentParams.categoryId = categoryData.id;
+            currentParams.complexCategoryId = categoryData.id;
 
-            await saveToStorage({ categoryId: categoryData.id });
+            await saveToStorage({ complexCategoryId: categoryData.id });
             console.log('New category created, ID:', categoryData.id);
 
             if (window.scriptParams) {
-                window.scriptParams.categoryId = categoryData.id;
+                window.scriptParams.complexCategoryId = categoryData.id;
             }
         }
 
         // 5. Создать услугу
         console.log('Параметры услуги:', {
             salonId: currentParams.salonId,
-            categoryId: currentParams.categoryId,
+            complexCategoryId: currentParams.complexCategoryId,
             serviceCounter: currentParams.serviceCounter
         });
-        const serviceData = await createService(cleanBaseUrl, currentParams);
-        currentParams.serviceCounter = serviceData.newServiceCounter;
-        await saveToStorage({ serviceCounter: currentParams.serviceCounter });
 
-        console.log('Успех:', serviceData);
+        let service1, service2, service3;
+
+        let serviceData1 = await createService(cleanBaseUrl, currentParams);
+        currentParams.serviceCounter = serviceData1.newServiceCounter;
+        await saveToStorage({ serviceCounter: currentParams.serviceCounter });
+        service1 = serviceData1.serviceId;
+        service1PriceMin = serviceData1.data.data?.price_min;
+        service1PriceMax = serviceData1.data.data?.price_max;
+        service1duration = serviceData1.data.data?.duration;
+
+        let serviceData2 = await createService(cleanBaseUrl, currentParams);
+        currentParams.serviceCounter = serviceData2.newServiceCounter;
+        await saveToStorage({ serviceCounter: currentParams.serviceCounter });
+        service2 = serviceData2.serviceId;
+        service2PriceMin = serviceData2.data.data?.price_min;
+        service2PriceMax = serviceData2.data.data?.price_max;
+        service2duration = serviceData2.data.data?.duration;
+
+        let serviceData3 = await createService(cleanBaseUrl, currentParams);
+        currentParams.serviceCounter = serviceData3.newServiceCounter;
+        await saveToStorage({ serviceCounter: currentParams.serviceCounter });
+        service3 = serviceData3.serviceId;
+        service3PriceMin = serviceData3.data.data?.price_min;
+        service3PriceMax = serviceData3.data.data?.price_max;
+        service3duration = serviceData3.data.data?.duration;
+
+        console.log('Успех:', serviceData1, serviceData2, serviceData3);
+
+        // 6. Создать комплекс услуг
+        let serviceComplexData = await createComplex(cleanBaseUrl, service1, service2, service3,
+            service1PriceMin, service1PriceMax, service2PriceMin, service2PriceMax, service3PriceMin,
+            service3PriceMax, service1duration, service2duration, service3duration, currentParams);
 
         return {
-            categoryId: currentParams.categoryId,
-            serviceData
+            complexCategoryId: currentParams.complexCategoryId,
+            serviceData1,
+            serviceData2,
+            serviceData3
         };
 
     } catch (error) {
@@ -69,7 +99,7 @@ async function createCategory(baseUrl, params) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            title: params.categoryTitle || `[QA-GEN] New category ${newCounter}`,
+            title: params.categoryTitle || `[QA-GEN] New complex category ${newCounter}`,
             salon_id: params.salonId
         })
     });
@@ -90,7 +120,7 @@ async function createCategory(baseUrl, params) {
 
 async function createService(baseUrl, params) {
     let price = Math.floor(Math.random() * (5000 - 100 + 1)) + 100;
-    const requiredServiceParams = ['salonId', 'categoryId'];
+    const requiredServiceParams = ['salonId', 'complexCategoryId'];
     const missing = requiredServiceParams.filter(p => !params[p]);
     if (missing.length) {
         throw new Error(`Нет параметров услуги: ${missing.join(', ')}`);
@@ -102,7 +132,7 @@ async function createService(baseUrl, params) {
     await saveToStorage({ serviceCounter: newServiceCounter });
 
     let serviceTitle = !params.serviceTitle || params.serviceTitle === '' || params.serviceTitle === 'undefined'
-    ? `[QA-GEN] New simple service ${newServiceCounter}`
+    ? `[QA-GEN] New complex service ${newServiceCounter}`
     : `[MANUAL] ${params.serviceTitle} ${newServiceCounter}`;
 
     const response = await fetch(`${baseUrl}/api/v1/company/${params.salonId}/services`, {
@@ -115,7 +145,7 @@ async function createService(baseUrl, params) {
             title: serviceTitle,
             booking_title: serviceTitle,
             print_title: serviceTitle,
-            category_id: params.categoryId,
+            category_id: params.complexCategoryId,
             price_max: price,
             price_min: price,
             comment: '',
@@ -160,7 +190,8 @@ async function createService(baseUrl, params) {
 
         return {
             newServiceCounter,
-            data
+            data,
+            serviceId
         };
     } catch (e) {
         throw new Error(`Не удалось распарсить ответ: ${responseText}`);
@@ -245,12 +276,12 @@ async function setMasters(baseUrl, params, serviceId, mastersList) {
 }
 
 async function checkCategory(baseUrl, params) {
-    if (!params.categoryId) {
-        await saveToStorage({ categoryId: null });
+    if (!params.complexCategoryId) {
+        await saveToStorage({ complexCategoryId: null });
         return false;
     }
 
-    const url = `${baseUrl}/api/v1/service_category/${params.salonId}/${params.categoryId}`;
+    const url = `${baseUrl}/api/v1/service_category/${params.salonId}/${params.complexCategoryId}`;
     const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -260,10 +291,126 @@ async function checkCategory(baseUrl, params) {
     });
 
     if (!response.ok) {
-        await saveToStorage({ categoryId: null });
+        await saveToStorage({ complexCategoryId: null });
         return false;
     }
     return true;
+}
+
+async function createComplex(baseUrl, service1, service2, service3,
+service1PriceMin, service1PriceMax, service2PriceMin, service2PriceMax, service3PriceMin, service3PriceMax,
+service1length, service2length, service3length, params) {
+
+    let complexDuration;
+    if (params.serviceProcedure === "sequential" || params.serviceProcedure === "sequential_multi") {
+        complexDuration = service1length + service2length + service3length;
+    } else {complexDuration = Math.max(service1length, service2length, service3length);}
+
+    let prices = [service1PriceMin, service2PriceMin, service3PriceMin]
+    let priceMin = 0;
+    if (params.pricing_type === "manual") {
+        let newPrices = distributeTotal(prices, params.manualPrice)
+        service1PriceMin = newPrices[0];
+        service2PriceMin = newPrices[1];
+        service3PriceMin = newPrices[2];
+        service1PriceMax = newPrices[0];
+        service2PriceMax = newPrices[1];
+        service3PriceMax = newPrices[2];
+        priceMin = service1PriceMin + service2PriceMin + service3PriceMin;
+        let discount = 0;
+    } else if (params.pricing_type === "discount") {
+        let totalMin = service1PriceMin + service2PriceMin + service3PriceMin;
+        priceMin = Math.floor(totalMin * (1 - parseFloat(params.discount) / 100));
+        newPrices = distributeTotal(prices, priceMin)
+        service1PriceMin = newPrices[0];
+        service2PriceMin = newPrices[1];
+        service3PriceMin = newPrices[2];
+        service1PriceMax = newPrices[0];
+        service2PriceMax = newPrices[1];
+        service3PriceMax = newPrices[2];
+        discount = params.discount;
+    } else if (params.pricing_type === "sum") {
+        priceMin = 0;
+        service1PriceMin = service1PriceMin;
+        service2PriceMin = service2PriceMin;
+        service3PriceMin = service3PriceMin;
+        service1PriceMax = service1PriceMax;
+        service2PriceMax = service2PriceMax;
+        service3PriceMax = service3PriceMax;
+        discount = 0;
+    }
+
+
+    const complexUrl = `${baseUrl}/api/v1/company/${params.salonId}/services/composites?
+    include[]=translations&include[]=salon_group_title&include[]=salon_group_service_link
+    &include[]=kkm_settings_id&include[]=composite_details`;
+
+    const requestComplexData = {
+        title: `[QA-GEN] Simple complex ${params.serviceCounter}`,
+        duration: complexDuration,
+        category_id: params.complexCategoryId,
+        is_multi: false,
+        price_min: priceMin,
+        price_max: priceMin,
+        booking_details: {
+            is_online_available: true,
+            description: "",
+            dates: [],
+            date_from: "1970-01-01",
+            date_to: "1970-01-01",
+            seance_search_start: 0,
+            seance_search_finish: 86400,
+            booking_title: `[QA-GEN] Simple complex ${params.serviceCounter}`,
+            online_invoicing_status: 0,
+            price_prepaid_amount: 0,
+            price_prepaid_percent: 0,
+            schedule_template_type: 2
+        },
+        description: "",
+        price_discount_percent: discount,
+        exec_order: `${params.serviceProcedure}`,
+        pricing_type: `${params.pricing_type}`,
+        links: [
+            {
+                service_id: service1,
+                position: 1,
+                price_min: service1PriceMin,
+                price_max: service1PriceMax
+            },
+            {
+                service_id: service2,
+                position: 2,
+                price_min: service2PriceMin,
+                price_max: service2PriceMax
+            },
+            {
+                service_id: service3,
+                position: 3,
+                price_min: service3PriceMin,
+                price_max: service3PriceMax
+            }
+        ]
+    };
+    try {
+        const response = await fetch(complexUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestComplexData)
+        });
+
+        const responseText = await response.text();
+        if (!response.ok) {
+            throw new Error(`Ошибка: ${response.status} ${response.statusText} - ${responseText}`);
+        }
+
+        // Пустой ответ считается успешным
+        return responseText ? JSON.parse(responseText) : { success: true };
+    } catch (error) {
+        throw new Error(`Не удалось создать комплекс: ${error.message}`);
+    }
 }
 
 // Helper functions
@@ -285,7 +432,7 @@ async function getExtensionParams() {
                     'bearerToken',
                     'salonId',
                     'userToken',
-                    'categoryId',
+                    'complexCategoryId',
                     'categoryCounter',
                     'includeMasters',
                     'serviceCounter',
@@ -312,11 +459,36 @@ async function saveToStorage(data) {
     }
 }
 
+function distributeTotal(prices, total) {
+    // Проверки
+    if (prices.some(p => p <= 0)) throw new Error("Все цены должны быть положительными");
+    if (total < prices.length) throw new Error(`Сумма не может быть меньше ${prices.length}`);
+
+    const sum = prices.reduce((a, b) => a + b, 0);
+    let distributed = prices.map(p => Math.floor((p / sum) * total));
+
+    // Распределение остатка
+    let remainder = total - distributed.reduce((a, b) => a + b, 0);
+
+    if (remainder > 0) {
+        const fractions = prices.map((p, i) => ({
+            index: i,
+            fraction: ((p / sum) * total) % 1
+        })).sort((a, b) => b.fraction - a.fraction);
+
+        for (let i = 0; i < remainder; i++) {
+            distributed[fractions[i].index]++;
+        }
+    }
+
+    return distributed;
+}
+
 // Автозапуск
 if (window.scriptParams) {
-    createSimpleService(window.scriptParams).catch(e => {
+    createSimpleComplex(window.scriptParams).catch(e => {
         console.error('Auto-start failed:', e);
     });
 }
 
-window.createSimpleService = createSimpleService;
+window.createSimpleComplex = createSimpleComplex;

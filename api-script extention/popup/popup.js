@@ -21,7 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     'serviceCounter',
                     'serviceAmount',
                     'recordHash',
-                    'recordId'
+                    'recordId',
+                    'activityCategoryId',
+                    'complexCategoryId'
                 ]);
 
                 alert('Временные данные успешно очищены!');
@@ -139,6 +141,43 @@ const SCRIPTS_CONFIG = {
             {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
             {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
         ]
+    },
+    'create_simple_service_tech_breaks.js':{
+        params:[
+            {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
+            {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
+            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
+        ]
+    },
+    'create_simple_complex.js':{
+        params:[
+            {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
+            {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
+            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1},
+            {id: 'serviceProcedure', type: 'radio', label: 'Порядок оказания услуг', default: 'sequential',
+            options: [
+                {value : 'sequential', label: 'Последовательно одним специалистом'},
+                {value : 'parallel', label: 'Одновременно несколькими специалистами' },
+                {value : 'sequential_multi', label: 'Последовательно несколькими специалистами'}
+            ]},
+            {id: 'pricing_type', type: 'radio', label: 'Стоимость комплекса', default: 'sum', options: [
+                {value : 'sum', label: 'Суммировать из услуг'},
+                {value : 'manual', label: 'Указать вручную'},
+                {value : 'discount', label: 'Указать скидку от суммы услуг'}
+                ]},
+            {id: 'manualPrice', type: 'number', label: 'Стоимость комплекса', default: 1000, min: 0,
+                conditional: {
+                    on: 'pricing_type',
+                    value: 'manual'
+                }
+            },
+            {id: 'discount', type: 'number', label: 'Скидка на комплекс', default: 0, min: 0, max: 100,
+            conditional: {
+                on: 'pricing_type',
+                value: 'discount'
+            }
+            }
+        ]
     }
 };
 
@@ -148,7 +187,7 @@ const TRANSLATIONS = {
         'services': 'Услуги',
         'auth': 'Авторизация',
         'createRecords': 'Создание записей',
-//        'phone': 'Телефония'
+//        'phone': 'Телефония',
     },
     subcategories: {
         'online': 'Онлайн записи',
@@ -156,7 +195,8 @@ const TRANSLATIONS = {
 //        'integration': 'Включить интеграцию',
 //        'pushes': 'Отправка пушей',
         'individual': 'Индивидуальные',
-        'activity': 'Групповые'
+        'activity': 'Групповые',
+        'complex': 'Комлпексы'
     },
     scripts: {
         'authorize.js': 'Авторизоваться',
@@ -168,7 +208,9 @@ const TRANSLATIONS = {
  //       'callbackPhone.js': 'Подключить',
  //       'incoming.js': '(push) Входящий звонок'
         'create_simple_service.js': 'Создать обычную услугу',
-        'createSimpleActivityService.js': 'Создать групповую услугу'
+        'createSimpleActivityService.js': 'Создать групповую услугу',
+        'create_simple_service_tech_breaks.js': 'Создать услугу с тех.перерывом',
+        'create_simple_complex.js': 'Создать простой комплекс'
 
     }
 };
@@ -203,8 +245,9 @@ async function fetchScriptsStructure(type) {
  //               'pushes': ['incoming.js']
  //           }
             'services': {
-                'individual':['create_simple_service.js'],
-                'activity':['createSimpleActivityService.js']
+                'individual':['create_simple_service.js', 'create_simple_service_tech_breaks.js'],
+                'activity':['createSimpleActivityService.js'],
+                'complex':['create_simple_complex.js']
             }
         };
     } else {
@@ -338,8 +381,10 @@ function showSettingsModal(type, category, scriptName, subcategory = null) {
     modalTitle.textContent = `${TRANSLATIONS.scripts[scriptName] || scriptName} - Настройки`;
     modalFields.innerHTML = '';
 
-    config.params.forEach(param => {
+    // Функция для создания элементов управления
+    const createParamField = (param, parent) => {
         const fieldDiv = document.createElement('div');
+        fieldDiv.className = `param-field param-${param.id}`;
         fieldDiv.style.marginBottom = '10px';
 
         const label = document.createElement('label');
@@ -347,26 +392,95 @@ function showSettingsModal(type, category, scriptName, subcategory = null) {
         label.style.display = 'block';
         label.style.marginBottom = '5px';
 
-        const input = document.createElement('input');
-        input.type = param.type;
-        input.id = `param_${scriptName}_${param.id}`;
-        input.value = param.default;
-        if (param.min) input.min = param.min;
-        if (param.max) input.max = param.max;
-        input.style.width = '100%';
-        input.style.padding = '5px';
-
         fieldDiv.appendChild(label);
-        fieldDiv.appendChild(input);
-        modalFields.appendChild(fieldDiv);
+
+        if (param.type === 'radio') {
+            param.options.forEach(option => {
+                const radioDiv = document.createElement('div');
+                radioDiv.style.display = 'flex';
+                radioDiv.style.alignItems = 'center';
+                radioDiv.style.marginBottom = '5px';
+
+                const radioInput = document.createElement('input');
+                radioInput.type = 'radio';
+                radioInput.id = `param_${scriptName}_${param.id}_${option.value}`;
+                radioInput.name = `param_${scriptName}_${param.id}`;
+                radioInput.value = option.value;
+                if (param.default === option.value) {
+                    radioInput.checked = true;
+                }
+
+                // Добавляем обработчик изменения
+                radioInput.addEventListener('change', () => {
+                    updateConditionalFields();
+                });
+
+                const radioLabel = document.createElement('label');
+                radioLabel.htmlFor = radioInput.id;
+                radioLabel.textContent = option.label;
+                radioLabel.style.marginLeft = '5px';
+
+                radioDiv.appendChild(radioInput);
+                radioDiv.appendChild(radioLabel);
+                fieldDiv.appendChild(radioDiv);
+            });
+        } else {
+            const input = document.createElement('input');
+            input.type = param.type;
+            input.id = `param_${scriptName}_${param.id}`;
+            input.value = param.default;
+            if (param.min) input.min = param.min;
+            if (param.max) input.max = param.max;
+            input.style.width = '100%';
+            input.style.padding = '5px';
+            fieldDiv.appendChild(input);
+        }
+
+        parent.appendChild(fieldDiv);
+        return fieldDiv;
+    };
+
+    // Функция для обновления видимости полей
+    const updateConditionalFields = () => {
+        config.params.forEach(param => {
+            if (param.conditional) {
+                const triggerParam = document.querySelector(
+                    `input[name="param_${scriptName}_${param.conditional.on}"]:checked`
+                );
+                const triggerValue = triggerParam ? triggerParam.value : null;
+
+                const field = document.querySelector(`.param-${param.id}`);
+                if (field) {
+                    field.style.display = triggerValue === param.conditional.value ? 'block' : 'none';
+                }
+            }
+        });
+    };
+
+    // Создаем все поля
+    config.params.forEach(param => {
+        createParamField(param, modalFields);
     });
+
+    // Первоначальное обновление видимости
+    updateConditionalFields();
 
     modal.style.display = 'block';
 
     document.getElementById('executeWithSettings').onclick = () => {
         const params = {};
         config.params.forEach(param => {
-            params[param.id] = document.getElementById(`param_${scriptName}_${param.id}`).value;
+            if (param.type === 'radio') {
+                const selectedRadio = document.querySelector(
+                    `input[name="param_${scriptName}_${param.id}"]:checked`
+                );
+                params[param.id] = selectedRadio ? selectedRadio.value : param.default;
+            } else {
+                const input = document.getElementById(`param_${scriptName}_${param.id}`);
+                if (input && input.style.display !== 'none') {
+                    params[param.id] = input.value;
+                }
+            }
         });
 
         executeScriptWithParams(type, category, scriptName, params, subcategory);

@@ -1,4 +1,4 @@
-async function createSimpleActivityService(params = {}) {
+async function createSimpleService(params = {}) {
     try {
         // 1. Получение параметров с дефолтным значением для serviceCounter
         const extensionParams = await getExtensionParams();
@@ -20,23 +20,23 @@ async function createSimpleActivityService(params = {}) {
 
         // 4. Создать категорию, если ее нет
         let categoryExist = await checkCategory(cleanBaseUrl, currentParams);
-        if (!currentParams.activityCategoryId || currentParams.createCategory === null || !categoryExist) {
+        if (!currentParams.categoryId || currentParams.createCategory === null || !categoryExist) {
             console.log('Creating new category...');
             const categoryData = await createCategory(cleanBaseUrl, currentParams);
-            currentParams.activityCategoryId = categoryData.id;
+            currentParams.categoryId = categoryData.id;
 
-            await saveToStorage({ activityCategoryId: categoryData.id });
+            await saveToStorage({ categoryId: categoryData.id });
             console.log('New category created, ID:', categoryData.id);
 
             if (window.scriptParams) {
-                window.scriptParams.activityCategoryId = categoryData.id;
+                window.scriptParams.categoryId = categoryData.id;
             }
         }
 
         // 5. Создать услугу
         console.log('Параметры услуги:', {
             salonId: currentParams.salonId,
-            activityCategoryId: currentParams.activityCategoryId,
+            categoryId: currentParams.categoryId,
             serviceCounter: currentParams.serviceCounter
         });
         const serviceData = await createService(cleanBaseUrl, currentParams);
@@ -45,9 +45,8 @@ async function createSimpleActivityService(params = {}) {
 
         console.log('Успех:', serviceData);
 
-
         return {
-            activityCategoryId: currentParams.activityCategoryId,
+            categoryId: currentParams.categoryId,
             serviceData
         };
 
@@ -66,60 +65,64 @@ async function createCategory(baseUrl, params) {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${params.bearerToken}, ${params.userToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            title: params.categoryTitle || `[QA-GEN] New activity category ${newCounter}`,
+            title: params.categoryTitle || `[QA-GEN] New category ${newCounter}`,
             salon_id: params.salonId
         })
     });
 
+    const responseText = await response.text();
     if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw new Error(`Ошибка создания категории: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(`Ошибка создания категории: ${response.status} ${response.statusText} - ${responseText}`);
     }
 
-    await saveToStorage({ categoryCounter: newCounter });
-    return await response.json();
+    try {
+        const data = responseText ? JSON.parse(responseText) : {};
+        await saveToStorage({ categoryCounter: newCounter });
+        return data;
+    } catch (e) {
+        throw new Error(`Не удалось распарсить ответ: ${responseText}`);
+    }
 }
 
 async function createService(baseUrl, params) {
     let price = Math.floor(Math.random() * (5000 - 100 + 1)) + 100;
-    const requiredServiceParams = ['salonId', 'activityCategoryId']; // Убрана проверка serviceCounter
+    const requiredServiceParams = ['salonId', 'categoryId'];
     const missing = requiredServiceParams.filter(p => !params[p]);
     if (missing.length) {
         throw new Error(`Нет параметров услуги: ${missing.join(', ')}`);
     }
 
-    // Гарантированная инициализация счетчика
     let currentServiceCounter = params.serviceCounter || 0;
     let newServiceCounter = currentServiceCounter + 1;
 
-    // Сохранение один раз (убрано дублирование)
     await saveToStorage({ serviceCounter: newServiceCounter });
 
     let serviceTitle = !params.serviceTitle || params.serviceTitle === '' || params.serviceTitle === 'undefined'
-    ? `[QA-GEN] New simple activity service ${newServiceCounter}`
+    ? `[QA-GEN] New simple service ${newServiceCounter}`
     : `[MANUAL] ${params.serviceTitle} ${newServiceCounter}`;
+
+    const tech_break = 300 + 300 * Math.floor(Math.random() * 12);
+    console.log('Технический перерыв:', tech_break);
 
     const response = await fetch(`${baseUrl}/api/v1/company/${params.salonId}/services`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${params.bearerToken}, ${params.userToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             title: serviceTitle,
             booking_title: serviceTitle,
             print_title: serviceTitle,
-            category_id: params.activityCategoryId,
+            category_id: params.categoryId,
             price_max: price,
             price_min: price,
             comment: '',
-            capacity: 10,
+            capacity: 0,
             autopayment_before_visit_time: 1,
             schedule_template_type: 2,
             seance_search_finish: 86400,
@@ -131,7 +134,7 @@ async function createService(baseUrl, params) {
             date_to: "1970-01-01",
             dates: [],
             duration: 3600,
-            is_multi: true,
+            is_multi: false,
             is_need_limit_date: false,
             repeat_visit_days_step: null,
             resources: [],
@@ -140,25 +143,31 @@ async function createService(baseUrl, params) {
             vat_id: -1,
             price_prepaid_amount: 0,
             price_prepaid_percent: "0",
-            online_invoicing_status: 0
+            online_invoicing_status: 0,
+            technical_break_duration: tech_break
         })
     });
 
+    const responseText = await response.text();
     if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw new Error(`Ошибка создания услуги: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(`Ошибка создания услуги: ${response.status} ${response.statusText} - ${responseText}`);
     }
 
-    let data = await response.json();
-    let serviceId = data.data?.id
-    if(params.includeMasters == true) {
-        await setMastersInServices(baseUrl, params, data.data.id)
-    }
+    try {
+        const data = responseText ? JSON.parse(responseText) : {};
+        let serviceId = data.data?.id;
 
-    return {
-        newServiceCounter,
-        data
-    };
+        if (params.includeMasters == true && serviceId) {
+            await setMastersInServices(baseUrl, params, serviceId);
+        }
+
+        return {
+            newServiceCounter,
+            data
+        };
+    } catch (e) {
+        throw new Error(`Не удалось распарсить ответ: ${responseText}`);
+    }
 }
 
 async function setMastersInServices(baseUrl, params, serviceId) {
@@ -167,29 +176,31 @@ async function setMastersInServices(baseUrl, params, serviceId) {
     const response = await fetch(url, {
         method: 'GET',
         headers: {
-            'Authorization': `Bearer ${params.bearerToken}, ${params.userToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+            'Content-Type': 'application/json'
         }
     });
 
+    const responseText = await response.text();
     if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw new Error(`Ошибка: ${response.status} ${response.statusText} - ${errorBody}`);
+        throw new Error(`Ошибка: ${response.status} ${response.statusText} - ${responseText}`);
     }
-    let mastersData = await response.json();
 
-    let listOfMastersArray = mastersData.data.filter(master =>
-    master.fired === 0
-    && master.is_deleted === false
-    )
+    try {
+        const mastersData = responseText ? JSON.parse(responseText) : {};
+        let listOfMastersArray = mastersData.data?.filter(master =>
+        master.fired === 0 && master.is_deleted === false
+        ) || [];
 
-    if (listOfMastersArray.length === 0) {
-        throw new Error('Нет доступных мастеров')
+        if (listOfMastersArray.length === 0) {
+            throw new Error('Нет доступных мастеров');
+        }
+
+        let mastersIdArray = listOfMastersArray.map(master => master.id);
+        await setMasters(baseUrl, params, serviceId, mastersIdArray);
+    } catch (e) {
+        throw new Error(`Не удалось обработать список мастеров: ${responseText}`);
     }
-    let mastersIdArray = listOfMastersArray.map(master => master.id);
-
-    await setMasters(baseUrl, params, serviceId, mastersIdArray)
 }
 
 async function setMasters(baseUrl, params, serviceId, mastersList) {
@@ -197,7 +208,6 @@ async function setMasters(baseUrl, params, serviceId, mastersList) {
         throw new Error('Список мастеров пуст');
     }
 
-    // Подготовка данных для отправки
     const resultArray = mastersList.map(masterId => ({
         master_id: parseInt(masterId),
         technological_card_id: 0,
@@ -212,7 +222,6 @@ async function setMasters(baseUrl, params, serviceId, mastersList) {
         translations: []
     };
 
-    // Формируем URL для назначения мастеров
     const url = `${baseUrl}/api/v1/company/${params.salonId}/services/links`;
 
     try {
@@ -239,22 +248,22 @@ async function setMasters(baseUrl, params, serviceId, mastersList) {
 }
 
 async function checkCategory(baseUrl, params) {
-    if (!params.activityCategoryId) {
-        await saveToStorage({ activityCategoryId: null });
+    if (!params.categoryId) {
+        await saveToStorage({ categoryId: null });
         return false;
     }
 
-    const url = `${baseUrl}/api/v1/service_category/${params.salonId}/${params.activityCategoryId}`;
+    const url = `${baseUrl}/api/v1/service_category/${params.salonId}/${params.categoryId}`;
     const response = await fetch(url, {
         method: 'GET',
         headers: {
-            'Authorization': `Bearer ${params.bearerToken}, ${params.userToken}`,
-            'Accept': 'application/json'
+            'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+            'Content-Type': 'application/json'
         }
     });
 
     if (!response.ok) {
-        await saveToStorage({ activityCategoryId: null });
+        await saveToStorage({ categoryId: null });
         return false;
     }
     return true;
@@ -279,7 +288,7 @@ async function getExtensionParams() {
                     'bearerToken',
                     'salonId',
                     'userToken',
-                    'activityCategoryId',
+                    'categoryId',
                     'categoryCounter',
                     'includeMasters',
                     'serviceCounter',
@@ -306,11 +315,11 @@ async function saveToStorage(data) {
     }
 }
 
-// Автозапуск (без изменений)
+// Автозапуск
 if (window.scriptParams) {
-    createSimpleActivityService(window.scriptParams).catch(e => {
+    createSimpleService(window.scriptParams).catch(e => {
         console.error('Auto-start failed:', e);
     });
 }
 
-window.createSimpleActivityService = createSimpleActivityService;
+window.createSimpleService = createSimpleService;

@@ -1,6 +1,6 @@
 body {
   width: 320px;
-  height: 400px;
+  height: 450px;
   padding: 10px;
   font-family: Arial, sans-serif;
 }
@@ -249,4 +249,26 @@ button:hover {
 
 #clearStorage:hover {
   background-color: #cc0000;
+}
+
+input[type="radio"] {
+  margin: 0;
+  width: auto;
+}
+
+.modal-content label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Добавьте в popup.css */
+.param-field {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.param-field[style*="display: none"] {
+  margin-bottom: 0;
+  height: 0;
+  opacity: 0;
 }
