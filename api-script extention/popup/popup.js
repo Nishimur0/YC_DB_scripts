@@ -108,8 +108,8 @@ const SCRIPTS_CONFIG = {
     'authorize.js': {
         displayName: 'Авторизоваться без 2FA',
         params: [
-            { id: 'login', type: 'text', label: 'Логин', default: 'login@gmail.com' },
-            { id: 'password', type: 'password', label: 'Пароль', default: 'password' },
+            { id: 'login', type: 'text', label: 'Логин', default: 'a.panov@yclients.com' },
+            { id: 'password', type: 'password', label: 'Пароль', default: 'apanov' },
         ]
     },
     'callbackPhone.js': {
@@ -132,28 +132,44 @@ const SCRIPTS_CONFIG = {
         params:[
             {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
             {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
-            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
+            {id: 'includeMasters', type: 'radio', label: 'Привязать мастеров', default: '1',
+                options: [
+                    {value : '1', label: 'Да'},
+                    {value : '0', label: 'Нет'}
+                ]}
         ]
     },
     'createSimpleActivityService.js' :{
         params:[
             {id: 'activityCategoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
             {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
-            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
+            {id: 'includeMasters', type: 'radio', label: 'Привязать мастеров', default: '1',
+                options: [
+                    {value : '1', label: 'Да'},
+                    {value : '0', label: 'Нет'}
+                ]}
         ]
     },
     'create_simple_service_tech_breaks.js':{
         params:[
             {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
             {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
-            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1}
+            {id: 'includeMasters', type: 'radio', label: 'Привязать мастеров', default: '1',
+            options: [
+                {value : '1', label: 'Да'},
+                {value : '0', label: 'Нет'}
+            ]}
         ]
     },
     'create_simple_complex.js':{
         params:[
             {id: 'categoryId', type: 'number', label: 'Id категории (Если пусто, создать новую)', default: null},
             {id: 'serviceTitle', type: 'text', label: 'Название услуг/и (Если пусто [QA-GEN]...)', default: null},
-            {id: 'includeMasters', type: 'number', label: 'Привязать мастеров (1 - да, 0 - нет)', default: 1},
+            {id: 'includeMasters', type: 'radio', label: 'Привязать мастеров', default: '1',
+                options: [
+                    {value : '1', label: 'Да'},
+                    {value : '0', label: 'Нет'}
+                ]},
             {id: 'serviceProcedure', type: 'radio', label: 'Порядок оказания услуг', default: 'sequential',
             options: [
                 {value : 'sequential', label: 'Последовательно одним специалистом'},
@@ -178,7 +194,18 @@ const SCRIPTS_CONFIG = {
             }
             }
         ]
-    }
+    },
+    'createMaster.js' : {
+    params: [
+        {id: 'name', type: 'text', label: 'Имя сотрудника', default: null},
+        {id: 'addUser', type: 'radio', label: 'Создать пользователя', default: '1', options:[
+            {value: '1', label: 'Да'},
+            {value: '0', label: 'Нет'}
+        ]},
+        {id: 'addTimetable', type: 'radio', label: 'Создать расписание', default: '1', options:[
+            {value: '1', label: 'Да'},
+            {value: '0', label: 'Нет'}]}
+    ]}
 };
 
 // Словарь переводов
@@ -188,6 +215,7 @@ const TRANSLATIONS = {
         'auth': 'Авторизация',
         'createRecords': 'Создание записей',
 //        'phone': 'Телефония',
+        'masters': 'Сотрудники'
     },
     subcategories: {
         'online': 'Онлайн записи',
@@ -210,7 +238,8 @@ const TRANSLATIONS = {
         'create_simple_service.js': 'Создать обычную услугу',
         'createSimpleActivityService.js': 'Создать групповую услугу',
         'create_simple_service_tech_breaks.js': 'Создать услугу с тех.перерывом',
-        'create_simple_complex.js': 'Создать простой комплекс'
+        'create_simple_complex.js': 'Создать простой комплекс',
+        'createMaster.js': 'Создать сотрудника',
 
     }
 };
@@ -248,7 +277,8 @@ async function fetchScriptsStructure(type) {
                 'individual':['create_simple_service.js', 'create_simple_service_tech_breaks.js'],
                 'activity':['createSimpleActivityService.js'],
                 'complex':['create_simple_complex.js']
-            }
+            },
+            'masters': ['createMaster.js']
         };
     } else {
         return {

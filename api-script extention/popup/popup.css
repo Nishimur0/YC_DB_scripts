@@ -3,12 +3,33 @@ body {
   height: 450px;
   padding: 10px;
   font-family: Arial, sans-serif;
+  margin: 0;
+  overflow: hidden;
 }
 
 .container {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .auth-section {
@@ -27,6 +48,7 @@ body {
 .tabs {
   display: flex;
   border-bottom: 1px solid #ccc;
+  flex-shrink: 0;
 }
 
 .tab-btn {
@@ -43,6 +65,8 @@ body {
 
 .tab-content {
   display: none;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 
 .tab-content.active {
@@ -69,6 +93,9 @@ body {
 .script-item {
   padding: 5px;
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .script-item:hover {
@@ -108,6 +135,21 @@ button:hover {
   padding: 20px;
   border-radius: 5px;
   width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
 }
 
 .close-modal {
@@ -116,12 +158,6 @@ button:hover {
   right: 15px;
   font-size: 20px;
   cursor: pointer;
-}
-
-.script-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .settings-btn {
@@ -172,7 +208,6 @@ button:hover {
   transform: rotate(180deg);
 }
 
-/* Добавьте в popup.css */
 .category-content {
   padding-left: 15px;
   border-left: 2px solid #ddd;
@@ -193,8 +228,6 @@ button:hover {
   background-color: #f0f0f0;
 }
 
-
-/* Стили для сворачивания/разворачивания */
 .category-content,
 .subcategory-content {
   max-height: 0;
@@ -205,11 +238,27 @@ button:hover {
 
 .category-content:not(.collapsed),
 .subcategory-content:not(.collapsed) {
-  max-height: 5000px; /* Достаточно большое значение */
+  max-height: 200px;
+  overflow-y: auto;
   transition: max-height 0.5s ease-in;
 }
 
-/* Заголовки категорий и подкатегорий */
+.category-content::-webkit-scrollbar,
+.subcategory-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.category-content::-webkit-scrollbar-track,
+.subcategory-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.category-content::-webkit-scrollbar-thumb,
+.subcategory-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
 .category-header,
 .subcategory-header {
   padding: 8px;
@@ -261,14 +310,34 @@ input[type="radio"] {
   user-select: none;
 }
 
-/* Добавьте в popup.css */
 .param-field {
   transition: all 0.3s ease;
   overflow: hidden;
+  margin-bottom: 10px;
 }
 
 .param-field[style*="display: none"] {
   margin-bottom: 0;
   height: 0;
   opacity: 0;
+}
+
+#modalFields {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-bottom: 10px;
+}
+
+#modalFields::-webkit-scrollbar {
+  width: 4px;
+}
+
+#modalFields::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+#modalFields::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
 }
