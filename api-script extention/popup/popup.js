@@ -277,7 +277,7 @@ const SCRIPTS_CONFIG = {
 const TRANSLATIONS = {
     categories: {
         'services': 'Услуги',
-        'auth': 'Авторизация',
+        'auth': 'Авторизация (получение user токена вручную)',
         'createRecords': 'Создание записей',
 //        'phone': 'Телефония',
         'masters': 'Сотрудники'
@@ -672,7 +672,7 @@ function executeScriptWithParams(type, category, scriptName, params, subcategory
                     if (chrome.runtime.lastError) {
                         handleError(chrome.runtime.lastError);
                     } else {
-                        notification.textContent = `Скрипт "${TRANSLATIONS.scripts[scriptName] || scriptName}" успешно выполнен`;
+                        notification.textContent = `Скрипт "${TRANSLATIONS.scripts[scriptName] || scriptName}" запущен`;
                         notification.className = 'notification success';
                         setTimeout(() => notification.remove(), 3000);
                     }

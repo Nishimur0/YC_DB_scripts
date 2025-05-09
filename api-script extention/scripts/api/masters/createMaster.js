@@ -90,10 +90,15 @@ async function createMaster(params = {}) {
             if(currentParams.addTimetable == true) {
                 await addToTimetable(cleanBaseUrl, params, masterData.data.id);}
         }
-
+        if (currentParams.linkAllServices == true) {
+            let servicesLink = await getServices(cleanBaseUrl, currentParams, masterData.data.id)
+            await masterServicesLink(cleanBaseUrl, currentParams, masterData.data.id, servicesLink)
+        }
+        showSuccess(`Создание сотрудника успешно завершено!`);
         //выбрасываем ошибку если все плохо
     } catch (error) {
         throw error;
+        showError(`Создание сотрудника не выполнено. Ошибка: ${error.message}`);
     }
 }
 
@@ -121,7 +126,7 @@ async function createSalonMaster(baseUrl, params, firstname, phone = null) {
             showError(`Ошибка ${response.meta.message}`);
         } else {
             response = await response.json();
-            showSuccess(`Сотрудник ${response.data.name} успешно создан!`);
+            showInfo(`Сотрудник ${response.data.name} успешно создан!`);
             return response;
         }
     }
@@ -1350,7 +1355,7 @@ async function addToTimetable(baseUrl, params, masterId) {
         }
 
         const result = await response.json();
-        showSuccess(`Расписание создано на ${dates.length} дней`);
+        showInfo(`Расписание создано на ${dates.length} дней`);
         return result;
     } catch (error) {
         showError(`Ошибка: ${error.message}`);
@@ -1395,18 +1400,88 @@ async function updateAdditionalInfo(baseUrl, params, masterId) {
     } catch {}
 }
 
-async function masterServicesLink(baseUrl, params, masterId) {
-    //https://biz-erp--technical-breaks-test.teststation.yclients.tech/api/v1/company/15520869/staff/18054371/services
-    //{"services_links":[
-    //{"service_id":21239902,"price":null,"seance_length":900,"technological_card_id":null,"api_id":"",
-    //"is_online":true,"is_offline_records_allowed":true},
-    //{"service_id":28020896,"price":null,"seance_length":3600,"technological_card_id":null,"api_id":"",
-    //"is_online":true,"is_offline_records_allowed":true}, ...]}
+async function masterServicesLink(baseUrl, params, masterId, services) {
+
+
+    const url = `${baseUrl}/api/v1/company/${params.salonId}/staff/${masterId}/services`;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(services)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            const errorMsg = errorData.meta?.exception_message ||
+            errorData.meta?.message || 'Ошибка при связывании услуг';
+            throw new Error(errorMsg);
+        }
+
+        let result = await response.json();
+        showInfo(`Услуги успешно связаны с мастером`);
+
+    } catch {}
+
+
 }
 
-async function getServices(baseUrl, params) {
-    //https://biz-erp--technical-breaks-test.teststation.yclients.tech/api/v1/company/15520869/services
-    
+async function getServices(baseUrl, params, masterId) {
+    const url = `${baseUrl}/api/v1/company/${params.salonId}/services`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            const errorMessage = errorData?.meta?.message || response.statusText;
+            throw new Error(`Ошибка ${response.status}: ${errorMessage}`);
+        }
+
+        const data = await response.json();
+
+        if (!data?.data?.length) {
+            showWarning('Получен пустой список услуг');
+            return { services_links: [] };
+        }
+
+        const services = data.data
+            .filter(service => {
+            return Array.isArray(service.staff) &&
+            !service.staff.some(staff => staff.id === masterId);
+        })
+            .map(service => {
+            const staffWithCard = Array.isArray(service.staff)
+            ? service.staff.find(staff => staff.technological_card_id > 0)
+            : null;
+
+            return {
+                service_id: service.id,
+                price: null,
+                seance_length: service.duration,
+                technological_card_id: staffWithCard?.technological_card_id || null,
+                api_id: service.api_id || "",
+                is_online: Boolean(service.is_online),
+                is_offline_records_allowed: true,
+            };
+        });
+
+        return { services_links: [... services] };
+
+    } catch (error) {
+        showError(`Ошибка при получении услуг: ${error.message}`);
+        console.error('Details:', error);
+    }
 }
 
 // Вспомогательные функции
