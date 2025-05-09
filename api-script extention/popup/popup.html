@@ -18,10 +18,10 @@
     <input type="text" id="userToken" placeholder="User Token">
     <input type="text" id="salonId" placeholder="salonId">
 
-    <button id="saveAuth">Сохранить</button>
-    <button id="clearStorage" class="btn btn-danger" style="margin-top: 10px;">
-      Очистить временные данные
-    </button>
+    <div class="auth-buttons">
+      <button id="saveAuth" class="auth-btn save-btn">Сохранить</button>
+      <button id="clearStorage" class="auth-btn clear-btn">Очистить данные</button>
+    </div>
   </div>
 
   <div class="tabs">
@@ -39,7 +39,8 @@
 </div>
 
 <script src="popup.js"></script>
-
+<script src="common.js"></script>
+<script src="../scripts/api/masters/createMaster.js"></script>
 
 <div id="settingsModal" class="modal">
   <div class="modal-content">
@@ -49,5 +50,6 @@
     <button id="executeWithSettings">Выполнить</button>
   </div>
 </div>
+<div id="notifications" class="notifications-container"></div>
 </body>
 </html>

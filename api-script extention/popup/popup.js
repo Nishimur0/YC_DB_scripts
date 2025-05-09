@@ -10,10 +10,49 @@ document.getElementById('toggleAuth').addEventListener('click', () => {
 document.querySelector('.auth-section').classList.add('collapsed');
 document.getElementById('toggleAuth').textContent = '▼';
 
+// Функция для показа уведомлений
+function showNotification(message, type = 'info', timeout = 5000) {
+    const notificationsContainer = document.getElementById('notifications') || createNotificationsContainer();
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button class="close-btn">&times;</button>
+    `;
+
+    const closeBtn = notification.querySelector('.close-btn');
+    closeBtn.addEventListener('click', () => {
+        notification.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    });
+
+    notificationsContainer.appendChild(notification);
+
+    if (timeout > 0) {
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, timeout);
+    }
+
+    return notification;
+}
+
+function createNotificationsContainer() {
+    const container = document.createElement('div');
+    container.id = 'notifications';
+    container.className = 'notifications-container';
+    document.body.appendChild(container);
+    return container;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Обработчик клика по кнопке очистки
     document.getElementById('clearStorage').addEventListener('click', async () => {
         if (confirm('Вы уверены, что хотите очистить все временные данные (счетчики, ID категорий и т.д.)?')) {
+            const notification = showNotification('Очистка временных данных...', 'info', 0);
+
             try {
                 await chrome.storage.local.remove([
                     'categoryId',
@@ -23,13 +62,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     'recordHash',
                     'recordId',
                     'activityCategoryId',
-                    'complexCategoryId'
+                    'complexCategoryId',
+                    `masterCounter`,
                 ]);
 
-                alert('Временные данные успешно очищены!');
+                notification.textContent = 'Временные данные успешно очищены!';
+                notification.className = 'notification success';
+                setTimeout(() => notification.remove(), 3000);
             } catch (error) {
+                notification.textContent = `Ошибка очистки: ${error.message}`;
+                notification.className = 'notification error';
+                setTimeout(() => notification.remove(), 5000);
                 console.error('Ошибка очистки:', error);
-                alert('Произошла ошибка при очистке данных');
             }
         }
     });
@@ -57,8 +101,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const userToken = document.getElementById('userToken').value;
         const salonId = document.getElementById('salonId').value;
 
+        if (!baseUrl || !bearerToken || !salonId) {
+            showNotification('Заполните обязательные поля: URL, Bearer Token и Salon ID', 'error');
+            return;
+        }
+
+        const notification = showNotification('Сохранение данных...', 'info', 0);
+
         chrome.storage.local.set({ baseUrl, bearerToken, userToken, salonId }, () => {
-            alert('Данные сохранены');
+            notification.textContent = 'Данные успешно сохранены!';
+            notification.className = 'notification success';
+            setTimeout(() => notification.remove(), 3000);
+
             document.querySelector('.auth-section').classList.add('collapsed');
             document.getElementById('toggleAuth').textContent = '▼';
         });
@@ -94,6 +148,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Загрузка структуры скриптов
     loadScriptsStructure();
+
+    // Обработчик сообщений от скриптов
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.type === 'PROGRESS_NOTIFICATION') {
+            showNotification(request.message, request.level || 'info', request.timeout || 5000);
+        }
+    });
 });
 
 // Конфигурация скриптов с параметрами
@@ -198,13 +259,17 @@ const SCRIPTS_CONFIG = {
     'createMaster.js' : {
     params: [
         {id: 'name', type: 'text', label: 'Имя сотрудника', default: null},
-        {id: 'addUser', type: 'radio', label: 'Создать пользователя', default: '1', options:[
+        {id: 'addUser', type: 'radio', label: 'Создать пользователя', default: '0', options:[
             {value: '1', label: 'Да'},
             {value: '0', label: 'Нет'}
         ]},
         {id: 'addTimetable', type: 'radio', label: 'Создать расписание', default: '1', options:[
             {value: '1', label: 'Да'},
-            {value: '0', label: 'Нет'}]}
+            {value: '0', label: 'Нет'}]},
+        {id: 'linkAllServices', type: 'radio', label: 'Связать все услуги с мастером', default: '0', options:[
+            {value: '1', label: 'Да'},
+            {value: '0', label: 'Нет'}
+        ]},
     ]}
 };
 
@@ -536,34 +601,95 @@ function executeScriptWithParams(type, category, scriptName, params, subcategory
     ? `scripts/${type}/${category}/${subcategory}/${scriptName}`
     : `scripts/${type}/${category}/${scriptName}`;
 
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        const tabId = tabs[0].id;
+    const notification = showNotification(
+        `Запуск: ${TRANSLATIONS.scripts[scriptName] || scriptName}`,
+        'info',
+        0
+    );
 
-        if (type === 'api') {
-            chrome.storage.local.get(['bearerToken', 'userToken'], (data) => {
-                const allParams = { ...params, ...data };
-                chrome.scripting.executeScript({
-                    target: {tabId: tabId},
-                    func: (p) => { window.scriptParams = p; },
-                    args: [allParams]
-                }, () => {
-                    chrome.scripting.executeScript({
-                        target: {tabId: tabId},
-                        files: [scriptPath]
-                    });
-                });
-            });
-        } else {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        const tabId = tabs[0]?.id;
+        if (!tabId) {
+            showNotification('Ошибка: Не найдена активная вкладка', 'error');
+            notification.remove();
+            return;
+        }
+
+        const handleError = (error) => {
+            console.error(`Ошибка выполнения ${scriptName}:`, error);
+            notification.textContent = `Ошибка: ${error.message || 'Неизвестная ошибка'}`;
+            notification.className = 'notification error';
+            setTimeout(() => notification.remove(), 5000);
+        };
+
+        let executeWithParams = (allParams) => {
             chrome.scripting.executeScript({
                 target: {tabId: tabId},
-                func: (p) => { window.scriptParams = p; },
-                args: [params]
+                func: (p) => {
+                    window.scriptParams = {
+                        ...p,
+                        showProgress: (message, level = 'info') => {
+                            chrome.runtime.sendMessage({
+                                type: 'PROGRESS_NOTIFICATION',
+                                message: message,
+                                level: level
+                            });
+                        },
+                        showWarning: (message) => {
+                            chrome.runtime.sendMessage({
+                                type: 'PROGRESS_NOTIFICATION',
+                                message: message,
+                                level: 'warning'
+                            });
+                        },
+                        showSuccess: (message) => {
+                            chrome.runtime.sendMessage({
+                                type: 'PROGRESS_NOTIFICATION',
+                                message: message,
+                                level: 'success'
+                            });
+                        },
+                        showError: (message) => {
+                            chrome.runtime.sendMessage({
+                                type: 'PROGRESS_NOTIFICATION',
+                                message: message,
+                                level: 'error'
+                            });
+                        }
+                    };
+                },
+                args: [allParams]
             }, () => {
+                if (chrome.runtime.lastError) {
+                    handleError(chrome.runtime.lastError);
+                    return;
+                }
+
                 chrome.scripting.executeScript({
                     target: {tabId: tabId},
                     files: [scriptPath]
+                }, (results) => {
+                    if (chrome.runtime.lastError) {
+                        handleError(chrome.runtime.lastError);
+                    } else {
+                        notification.textContent = `Скрипт "${TRANSLATIONS.scripts[scriptName] || scriptName}" успешно выполнен`;
+                        notification.className = 'notification success';
+                        setTimeout(() => notification.remove(), 3000);
+                    }
                 });
             });
+        };
+
+        if (type === 'api') {
+            chrome.storage.local.get(['bearerToken', 'userToken', 'salonId'], (data) => {
+                if (!data.bearerToken || !data.salonId) {
+                    handleError(new Error('Не указаны Bearer Token или Salon ID'));
+                    return;
+                }
+                executeWithParams({ ...params, ...data });
+            });
+        } else {
+            executeWithParams(params);
         }
     });
 }

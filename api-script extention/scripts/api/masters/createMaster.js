@@ -1,5 +1,26 @@
+// Проверяем инициализацию функций логирования
+if (!window._loggingFunctionsInitialized) {
+    window.showProgress = (message, level = 'info') => {
+        if (window.scriptParams?.showProgress) {
+            window.scriptParams.showProgress(message, level);
+        } else {
+            console.log(`[${level}] ${message}`);
+        }
+    };
+
+    window.showWarning = (message) => showProgress(message, 'warning');
+    window.showSuccess = (message) => showProgress(message, 'success');
+    window.showError = (message) => showProgress(message, 'error');
+    window.showInfo = (message) => showProgress(message, 'info');
+
+    window._loggingFunctionsInitialized = true;
+}
+
+// Запускаем скрипт
 async function createMaster(params = {}) {
+
     try {
+
         // 1. Получаем и объединяем параметры
         const extensionParams = await getExtensionParams();
         const currentParams = {
@@ -29,31 +50,84 @@ async function createMaster(params = {}) {
 
         // 5. Получаем свободный номер телефона и генерим базовые данные пользователя
         let phoneData = await checkPhone(cleanBaseUrl, currentParams);
-        console.log(phoneData)
 
         // 6. Получаем id сети
         let chainId = await getChain(cleanBaseUrl, currentParams);
-        console.log(chainId)
 
         // 7. Создаем пользователя
+        if (currentParams.masterCounter === undefined) {
+            const storageData = await chrome.storage.local.get('masterCounter');
+            currentParams.masterCounter = storageData.masterCounter || 0;
+            await saveToStorage({ masterCounter: currentParams.masterCounter });
+        }
+
+        let phone = null;
+        let email = null;
+        let firstname = `[QA-GEN] Сотрудник ${currentParams.masterCounter}`
+
         if (currentParams.addUser == true) {
             let user = await createUser(cleanBaseUrl, currentParams, phoneData.number,
                 phoneData.email, phoneData.firstname, chainId);
-            console.log(user.data?.id);
-            await updateUser(cleanBaseUrl, currentParams, user.data?.id, phoneData.number,
+            phone = phoneData.number
+            email = phoneData.email
+            firstname = phoneData.firstname
+
+            showProgress(`Пользователь ${phoneData.number} успешно создан!`);
+            let updatedUser = await updateUser(cleanBaseUrl, currentParams, user.data?.id, phoneData.number,
                 phoneData.email, phoneData.firstname);
+            console.log(updatedUser.data);
+            if (!updatedUser.success) {
+                showWarning(`Пароль для пользователя не был задан`)
+            }
+        } else {
+            let newMasterCounter = currentParams.masterCounter + 1;
+            await saveToStorage({ masterCounter: newMasterCounter });
+        }
+        // 8. Создаем мастера
+        let masterData = await createSalonMaster(cleanBaseUrl, currentParams, firstname, phone);
+        if (masterData.success === true) {
+            await updateAdditionalInfo(cleanBaseUrl, params, masterData.data.id)
+            if(currentParams.addTimetable == true) {
+                await addToTimetable(cleanBaseUrl, params, masterData.data.id);}
         }
 
         //выбрасываем ошибку если все плохо
     } catch (error) {
-        console.error('Ошибка в цепочке:', error);
         throw error;
     }
 }
 
 //создание мастера
-async function createSalonMaster(baseUrl, params, phone) {
-    url = `${baseUrl}/api/v1/company/${params.salonId}/staff/quick`;
+async function createSalonMaster(baseUrl, params, firstname, phone = null) {
+    let url = `${baseUrl}/api/v1/company/${params.salonId}/staff/quick`;
+    let body = {
+        "name": `${firstname}`,
+        "specialization": `${firstname}`,
+        "position_id": null,
+        "user_phone": phone !== null ? `${phone}` : null,
+        "is_user_invite": false,
+        "user_email": null
+    }
+    try {
+        let response = await fetch(url, {
+            method: `POST`,
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        })
+        if (!response.ok) {
+            response = await response.json();
+            showError(`Ошибка ${response.meta.message}`);
+        } else {
+            response = await response.json();
+            showSuccess(`Сотрудник ${response.data.name} успешно создан!`);
+            return response;
+        }
+    }
+    catch (error) {
+        throw new Error(`Сотрудник не был создан`);
+    }
 }
 
 async function createUser(baseUrl, params, phone, email, firstname, chainId) {
@@ -1137,10 +1211,10 @@ async function createUser(baseUrl, params, phone, email, firstname, chainId) {
 }
 
 async function updateUser(baseUrl, params, userId, phone, email, firstname) {
-    const url = `${baseUrl}/settings/user_save`;
+    let url = `${baseUrl}/settings/user_save`;
 
     // Формируем данные для отправки
-    const formData = new FormData();
+    let formData = new FormData();
     formData.append('user_id', userId);
     formData.append('salon_id', params.salonId);
     formData.append('firstname', firstname);
@@ -1156,7 +1230,7 @@ async function updateUser(baseUrl, params, userId, phone, email, firstname) {
     formData.append('user_id_to_set_permissions', userId);
 
     try {
-        const response = await fetch(url, {
+        let response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
@@ -1166,7 +1240,7 @@ async function updateUser(baseUrl, params, userId, phone, email, firstname) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
+            let errorData = await response.json();
             throw new Error(`Не удалось задать пароль: ${response.status}`);
         }
 
@@ -1230,16 +1304,109 @@ async function checkPhone(baseUrl, params) {
     }
 }
 
-async function addToTimetable() {
+async function addToTimetable(baseUrl, params, masterId) {
+    // Генерируем массив дат (120 дней, начиная с недели назад)
+    const currentDate = new Date();
+    const previousWeekDate = new Date(currentDate);
+    previousWeekDate.setDate(currentDate.getDate() - 7);
 
+    const dates = [];
+    for (let i = 0; i < 120; i++) {
+        const date = new Date(previousWeekDate);
+        date.setDate(date.getDate() + i);
+        dates.push(date.toISOString().slice(0, 10));
+    }
+
+    // Базовый шаблон расписания
+    const scheduleTemplate = {
+        is_working: true,
+        slots: [{ from: "10:00", to: "21:00" }]
+    };
+
+    // Формируем массив расписаний для всех дат
+    const schedules = dates.map(date => ({
+        ...scheduleTemplate,
+        date: date
+    }));
+
+    const url = `${baseUrl}/api/v1/schedule/${params.salonId}/${masterId}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(schedules)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            const errorMsg = errorData.meta?.exception_message ||
+            errorData.meta?.message ||
+            'Ошибка при создании расписания';
+            throw new Error(errorMsg);
+        }
+
+        const result = await response.json();
+        showSuccess(`Расписание создано на ${dates.length} дней`);
+        return result;
+    } catch (error) {
+        showError(`Ошибка: ${error.message}`);
+        throw error;
+    }
 }
 
-async function updateMaster() {
+async function updateAdditionalInfo(baseUrl, params, masterId) {
+    let url = `${baseUrl}/settings/master/additional_info/save/${params.salonId}/${masterId}/`;
 
+    // Формируем данные для отправки
+    const formData = new FormData();
+    formData.append('employee_name', '');
+    formData.append('surname', '');
+    formData.append('patronymic', '');
+    formData.append('date_admission', '');
+    formData.append('date_registration_end', '');
+    formData.append('phone_number', '');
+    formData.append('citizenship', '');
+    formData.append('sex', '0');
+    formData.append('passport_data', '');
+    formData.append('inn', '000000000000');
+    formData.append('number_insurance_certificates', '');
+
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${params.bearerToken}, User ${params.userToken}`,
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Не удалось обновить доп.инфо: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch {}
 }
 
-async function updateAdditionalInfo() {
+async function masterServicesLink(baseUrl, params, masterId) {
+    //https://biz-erp--technical-breaks-test.teststation.yclients.tech/api/v1/company/15520869/staff/18054371/services
+    //{"services_links":[
+    //{"service_id":21239902,"price":null,"seance_length":900,"technological_card_id":null,"api_id":"",
+    //"is_online":true,"is_offline_records_allowed":true},
+    //{"service_id":28020896,"price":null,"seance_length":3600,"technological_card_id":null,"api_id":"",
+    //"is_online":true,"is_offline_records_allowed":true}, ...]}
+}
 
+async function getServices(baseUrl, params) {
+    //https://biz-erp--technical-breaks-test.teststation.yclients.tech/api/v1/company/15520869/services
+    
 }
 
 // Вспомогательные функции
@@ -1258,13 +1425,24 @@ async function getExtensionParams() {
     });
 }
 
+async function saveToStorage(data) {
+    try {
+        if (chrome?.storage?.local?.set) {
+            return new Promise(resolve => {
+                chrome.storage.local.set(data, resolve);
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to save to storage:', e);
+    }
+}
+
 // Автозапуск при наличии параметров
 if (window.scriptParams) {
     createMaster(window.scriptParams).catch(e => {
         console.error('Автозапуск не удался:', e);
     });
 }
-
 
 // Для ручного вызова
 window.createMaster = createMaster;

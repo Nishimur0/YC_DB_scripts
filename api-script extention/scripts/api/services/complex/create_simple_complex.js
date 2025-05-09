@@ -487,7 +487,7 @@ function distributeTotal(prices, total) {
 // Автозапуск
 if (window.scriptParams) {
     createSimpleComplex(window.scriptParams).catch(e => {
-        console.error('Auto-start failed:', e);
+        console.error('Автозапуск не удался:', e);
     });
 }
 
