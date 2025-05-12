@@ -1,3 +1,21 @@
+// Проверяем инициализацию функций логирования
+if (!window._loggingFunctionsInitialized) {
+    window.showProgress = (message, level = 'info') => {
+        if (window.scriptParams?.showProgress) {
+            window.scriptParams.showProgress(message, level);
+        } else {
+            console.log(`[${level}] ${message}`);
+        }
+    };
+
+    window.showWarning = (message) => showProgress(message, 'warning');
+    window.showSuccess = (message) => showProgress(message, 'success');
+    window.showError = (message) => showProgress(message, 'error');
+    window.showInfo = (message) => showProgress(message, 'info');
+
+    window._loggingFunctionsInitialized = true;
+}
+
 async function createSimpleActivityService(params = {}) {
     try {
         // 1. Получение параметров с дефолтным значением для serviceCounter
@@ -43,7 +61,7 @@ async function createSimpleActivityService(params = {}) {
         currentParams.serviceCounter = serviceData.newServiceCounter;
         await saveToStorage({ serviceCounter: currentParams.serviceCounter });
 
-        console.log('Успех:', serviceData);
+        showSuccess(`Услуга успешно создана: ${serviceData.data.data.title}`);
 
 
         return {

@@ -1,3 +1,21 @@
+// Проверяем инициализацию функций логирования
+if (!window._loggingFunctionsInitialized) {
+    window.showProgress = (message, level = 'info') => {
+        if (window.scriptParams?.showProgress) {
+            window.scriptParams.showProgress(message, level);
+        } else {
+            console.log(`[${level}] ${message}`);
+        }
+    };
+
+    window.showWarning = (message) => showProgress(message, 'warning');
+    window.showSuccess = (message) => showProgress(message, 'success');
+    window.showError = (message) => showProgress(message, 'error');
+    window.showInfo = (message) => showProgress(message, 'info');
+
+    window._loggingFunctionsInitialized = true;
+}
+
 async function createSimpleComplex(params = {}) {
     try {
         // 1. Получение параметров с дефолтным значением для serviceCounter
@@ -73,6 +91,7 @@ async function createSimpleComplex(params = {}) {
             service1PriceMin, service1PriceMax, service2PriceMin, service2PriceMax, service3PriceMin,
             service3PriceMax, service1duration, service2duration, service3duration, currentParams);
 
+        showSuccess(`Создан комплекс услуг: ${serviceComplexData.data.title}`)
         return {
             complexCategoryId: currentParams.complexCategoryId,
             serviceData1,
@@ -345,8 +364,32 @@ service1length, service2length, service3length, params) {
     include[]=translations&include[]=salon_group_title&include[]=salon_group_service_link
     &include[]=kkm_settings_id&include[]=composite_details`;
 
+    let title = '[QA-GEN] Complex';
+    const procedureTitles = {
+        sequential: ' Последовательный (1 спец.)',
+        sequential_multi: ' Последовательный (разн. спец-ты)',
+        parallel: ' Параллельный'
+    };
+    if (params.serviceProcedure && procedureTitles[params.serviceProcedure]) {
+        title += procedureTitles[params.serviceProcedure];
+    }
+
+    if (params.pricing_type) {
+        switch (params.pricing_type) {
+            case 'sum':
+                title += ' Суммарная стоимость';
+                break;
+            case 'discount':
+                title += ` Со скидкой ${params.discount || 0}%`;
+                break;
+            case 'manual':
+                title += ` Ручная стоимость ${params.manualPrice || 0}`;
+                break;
+        }
+    }
+
     const requestComplexData = {
-        title: `[QA-GEN] Simple complex ${params.serviceCounter}`,
+        title: `${title}`,
         duration: complexDuration,
         category_id: params.complexCategoryId,
         is_multi: false,
@@ -360,7 +403,7 @@ service1length, service2length, service3length, params) {
             date_to: "1970-01-01",
             seance_search_start: 0,
             seance_search_finish: 86400,
-            booking_title: `[QA-GEN] Simple complex ${params.serviceCounter}`,
+            booking_title: `${title}`,
             online_invoicing_status: 0,
             price_prepaid_amount: 0,
             price_prepaid_percent: 0,

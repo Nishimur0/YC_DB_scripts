@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     'activityCategoryId',
                     'complexCategoryId',
                     `masterCounter`,
+                    `goodCounter`,
+                    `goodCategoryCounter`,
                 ]);
 
                 notification.textContent = 'Временные данные успешно очищены!';
@@ -270,7 +272,29 @@ const SCRIPTS_CONFIG = {
             {value: '1', label: 'Да'},
             {value: '0', label: 'Нет'}
         ]},
-    ]}
+    ]},
+    'createGood.js':{
+        params: [
+            {id: 'goodName', type: 'text', label: 'Название товара (Если пусто, название по-умолчанию)', default: null},
+            {id: `category_name`, type: 'text', label: 'Название категории (Если пусто, название по-умолчанию)', default: null},
+            {id: 'levels', type: 'Number', label: 'Количество доп.уровней (0 без вложенности)', default: 0},
+            {id: 'goodInEveryCategory', type: 'radio', label: 'Создать товары в каждой категории', default: '1', options:[
+                {value: '1', label: 'Да'},
+                {value: '0', label: 'Нет'}
+            ]},
+            {id: 'goodMarkCategory', type: 'select', label: 'Маркировка', default: '0', options:[
+                {value: '0', label: 'Без маркировки'},
+                {value: '1', label: 'Медицинские препараты / Лекарств'},
+                {value: '2', label: 'Духи / Туалетная вода'},
+                {value: '3', label: 'Вода'},
+                {value: '4', label: 'Обувь'},
+                {value: '6', label: 'БАД'},
+                {value: '7', label: 'Товары легкой промышленности'},
+
+            ]}
+
+        ]
+    },
 };
 
 // Словарь переводов
@@ -280,7 +304,8 @@ const TRANSLATIONS = {
         'auth': 'Авторизация (получение user токена вручную)',
         'createRecords': 'Создание записей',
 //        'phone': 'Телефония',
-        'masters': 'Сотрудники'
+        'masters': 'Сотрудники',
+        'goods': 'Товары',
     },
     subcategories: {
         'online': 'Онлайн записи',
@@ -289,7 +314,8 @@ const TRANSLATIONS = {
 //        'pushes': 'Отправка пушей',
         'individual': 'Индивидуальные',
         'activity': 'Групповые',
-        'complex': 'Комлпексы'
+        'complex': 'Комлпексы',
+        'createGoods': 'Создание товаров',
     },
     scripts: {
         'authorize.js': 'Авторизоваться',
@@ -305,6 +331,7 @@ const TRANSLATIONS = {
         'create_simple_service_tech_breaks.js': 'Создать услугу с тех.перерывом',
         'create_simple_complex.js': 'Создать простой комплекс',
         'createMaster.js': 'Создать сотрудника',
+        'createGood.js': 'Cоздать товар',
 
     }
 };
@@ -343,7 +370,11 @@ async function fetchScriptsStructure(type) {
                 'activity':['createSimpleActivityService.js'],
                 'complex':['create_simple_complex.js']
             },
-            'masters': ['createMaster.js']
+            'masters': ['createMaster.js'],
+            'goods': {
+                'createGoods': ['createGood.js']
+            },
+
         };
     } else {
         return {
@@ -486,7 +517,6 @@ function showSettingsModal(type, category, scriptName, subcategory = null) {
         label.textContent = param.label + ': ';
         label.style.display = 'block';
         label.style.marginBottom = '5px';
-
         fieldDiv.appendChild(label);
 
         if (param.type === 'radio') {
@@ -519,6 +549,23 @@ function showSettingsModal(type, category, scriptName, subcategory = null) {
                 radioDiv.appendChild(radioLabel);
                 fieldDiv.appendChild(radioDiv);
             });
+        } else if (param.type === 'select') {
+            const select = document.createElement('select');
+            select.id = `param_${scriptName}_${param.id}`;
+            select.style.width = '100%';
+            select.style.padding = '5px';
+
+            param.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.value;
+                optionElement.textContent = option.label;
+                if (option.value === param.default) {
+                    optionElement.selected = true;
+                }
+                select.appendChild(optionElement);
+            });
+
+            fieldDiv.appendChild(select);
         } else {
             const input = document.createElement('input');
             input.type = param.type;
@@ -570,6 +617,9 @@ function showSettingsModal(type, category, scriptName, subcategory = null) {
                     `input[name="param_${scriptName}_${param.id}"]:checked`
                 );
                 params[param.id] = selectedRadio ? selectedRadio.value : param.default;
+            } else if (param.type === 'select') {
+                const select = document.getElementById(`param_${scriptName}_${param.id}`);
+                params[param.id] = select.value;
             } else {
                 const input = document.getElementById(`param_${scriptName}_${param.id}`);
                 if (input && input.style.display !== 'none') {
