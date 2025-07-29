@@ -118,13 +118,13 @@ async function createService(baseUrl, params) {
     let newServiceCounter = currentServiceCounter + 1;
 
     await saveToStorage({ serviceCounter: newServiceCounter });
+    const tech_break = 300 + 300 * Math.floor(Math.random() * 12);
 
     let serviceTitle = !params.serviceTitle || params.serviceTitle === '' || params.serviceTitle === 'undefined'
-    ? `[QA-GEN] New simple service ${newServiceCounter}`
+    ? `[QA-GEN] New simple service ${newServiceCounter} Перерыв:${tech_break / 60}`
     : `[MANUAL] ${params.serviceTitle} ${newServiceCounter}`;
 
-    const tech_break = 300 + 300 * Math.floor(Math.random() * 12);
-    console.log('Технический перерыв:', tech_break);
+
 
     const response = await fetch(`${baseUrl}/api/v1/company/${params.salonId}/services`, {
         method: 'POST',

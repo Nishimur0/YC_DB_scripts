@@ -159,7 +159,7 @@ async function createService(baseUrl, params) {
             price_prepaid_amount: 0,
             price_prepaid_percent: "0",
             online_invoicing_status: 0,
-            technical_break_duration: 0
+            technical_break_duration: null
         })
     });
 
